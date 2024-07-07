@@ -5,16 +5,16 @@ import { loadAnthropicChatModels } from './anthropic';
 import { loadTransformersEmbeddingsModels } from './transformers';
 
 const chatModelProviders = {
-  openai: loadOpenAIChatModels,
+//  openai: loadOpenAIChatModels,
   groq: loadGroqChatModels,
-  ollama: loadOllamaChatModels,
   anthropic: loadAnthropicChatModels,
+//  ollama: loadOllamaChatModels,
 };
 
 const embeddingModelProviders = {
-  openai: loadOpenAIEmbeddingsModels,
+//  openai: loadOpenAIEmbeddingsModels,
   local: loadTransformersEmbeddingsModels,
-  ollama: loadOllamaEmbeddingsModels,
+//  ollama: loadOllamaEmbeddingsModels,
 };
 
 export const getAvailableChatModelProviders = async () => {
