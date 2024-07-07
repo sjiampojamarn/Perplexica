@@ -6,18 +6,19 @@ import { loadTransformersEmbeddingsModels } from './transformers';
 import { loadGeminiChatModels, loadGeminiEmbeddingsModels } from './gemini';
 
 const chatModelProviders = {
-  openai: loadOpenAIChatModels,
+//  openai: loadOpenAIChatModels,
   groq: loadGroqChatModels,
-  ollama: loadOllamaChatModels,
   anthropic: loadAnthropicChatModels,
   gemini: loadGeminiChatModels,
+//  ollama: loadOllamaChatModels,
 };
 
 const embeddingModelProviders = {
-  openai: loadOpenAIEmbeddingsModels,
+//  openai: loadOpenAIEmbeddingsModels,
   local: loadTransformersEmbeddingsModels,
   ollama: loadOllamaEmbeddingsModels,
   gemini: loadGeminiEmbeddingsModels,
+//  ollama: loadOllamaEmbeddingsModels,
 };
 
 export const getAvailableChatModelProviders = async () => {
