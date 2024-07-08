@@ -7,4 +7,4 @@ COPY ui /home/perplexica/
 RUN yarn install
 RUN yarn build
 
-CMD ["yarn", "start"]
+ENTRYPOINT ["/bin/sh", "-c", "yarn build && yarn start"]
