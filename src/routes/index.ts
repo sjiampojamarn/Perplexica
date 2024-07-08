@@ -14,7 +14,7 @@ router.use('/videos', videosRouter);
 router.use('/config', configRouter);
 router.use('/models', modelsRouter);
 router.use('/suggestions', suggestionsRouter);
-router.use('/chats', chatsRouter);
+// router.use('/chats', chatsRouter);
 router.use('/search', searchRouter);
 
 export default router;
