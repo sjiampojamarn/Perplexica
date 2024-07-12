@@ -52,14 +52,15 @@ router.get('/', async (_, res) => {
       });
     }
 
-    config['openaiApiKey'] = getOpenaiApiKey();
-    config['ollamaApiUrl'] = getOllamaApiEndpoint();
-    config['anthropicApiKey'] = getAnthropicApiKey();
-    config['groqApiKey'] = getGroqApiKey();
-    config['geminiApiKey'] = getGeminiApiKey();
-    config['customOpenaiApiUrl'] = getCustomOpenaiApiUrl();
-    config['customOpenaiApiKey'] = getCustomOpenaiApiKey();
-    config['customOpenaiModelName'] = getCustomOpenaiModelName();
+    // SJ: Disable getting api keys
+    // config['openaiApiKey'] = getOpenaiApiKey();
+    // config['ollamaApiUrl'] = getOllamaApiEndpoint();
+    // config['anthropicApiKey'] = getAnthropicApiKey();
+    // config['groqApiKey'] = getGroqApiKey();
+    // config['geminiApiKey'] = getGeminiApiKey();
+    // config['customOpenaiApiUrl'] = getCustomOpenaiApiUrl();
+    // config['customOpenaiApiKey'] = getCustomOpenaiApiKey();
+    // config['customOpenaiModelName'] = getCustomOpenaiModelName();
 
     res.status(200).json(config);
   } catch (err: any) {
@@ -96,7 +97,8 @@ router.post('/', async (req, res) => {
     },
   };
 
-  updateConfig(updatedConfig);
+  // Disable updating api keys 
+  // updateConfig(updatedConfig);
 
   res.status(200).json({ message: 'Config updated' });
 });
