@@ -48,10 +48,11 @@ router.get('/', async (_, res) => {
       });
     }
 
-    config['openaiApiKey'] = getOpenaiApiKey();
-    config['ollamaApiUrl'] = getOllamaApiEndpoint();
-    config['anthropicApiKey'] = getAnthropicApiKey();
-    config['groqApiKey'] = getGroqApiKey();
+    // SJ: Disable getting api keys
+    //config['openaiApiKey'] = getOpenaiApiKey();
+    //config['ollamaApiUrl'] = getOllamaApiEndpoint();
+    //config['anthropicApiKey'] = getAnthropicApiKey();
+    //config['groqApiKey'] = getGroqApiKey();
 
     res.status(200).json(config);
   } catch (err: any) {
@@ -74,7 +75,8 @@ router.post('/', async (req, res) => {
     },
   };
 
-  updateConfig(updatedConfig);
+  // Disable updating api keys 
+  // updateConfig(updatedConfig);
 
   res.status(200).json({ message: 'Config updated' });
 });
