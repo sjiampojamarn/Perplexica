@@ -206,6 +206,7 @@ export const handleMessage = async (
             where: eq(chats.id, parsedMessage.chatId),
           });
 
+          let currentDate = new Date();
           if (!chat) {
             await db
               .insert(chats)
@@ -216,6 +217,7 @@ export const handleMessage = async (
                 focusMode: parsedWSMessage.focusMode,
                 files: parsedWSMessage.files.map(getFileDetails),
                 userSessionId: parsedMessage.userSessionId,
+                timestamp: currentDate.toISOString(),
               })
               .execute();
           }
