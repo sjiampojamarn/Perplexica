@@ -26,4 +26,5 @@ export const chats = sqliteTable('chats', {
     .$type<File[]>()
     .default(sql`'[]'`),
   userSessionId: text('userSessionId'),
+  timestamp: text('timestamp'),
 });
