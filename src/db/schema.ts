@@ -17,4 +17,5 @@ export const chats = sqliteTable('chats', {
   createdAt: text('createdAt').notNull(),
   focusMode: text('focusMode').notNull(),
   userSessionId: text('userSessionId'),
+  timestamp: text('timestamp'),
 });
