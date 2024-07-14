@@ -147,15 +147,17 @@ export const handleMessage = async (
           where: eq(chats.id, parsedMessage.chatId),
         });
 
+        let currentDate = new Date();
         if (!chat) {
           await db
             .insert(chats)
             .values({
               id: parsedMessage.chatId,
               title: parsedMessage.content,
-              createdAt: new Date().toString(),
+              createdAt: currentDate.toString(),
               focusMode: parsedWSMessage.focusMode,
               userSessionId: parsedMessage.userSessionId,
+              timestamp: currentDate.toISOString(),
             })
             .execute();
         }
