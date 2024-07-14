@@ -2,6 +2,9 @@ FROM node:alpine
 
 RUN apk add --no-cache bash
 
+# Set environment variable to disable telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
+
 WORKDIR /home/perplexica
 
 COPY ui /home/perplexica/
