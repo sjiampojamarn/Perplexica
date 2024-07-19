@@ -1,4 +1,4 @@
-FROM node:slim
+FROM node:lts-slim
 
 ARG SEARXNG_API_URL
 
