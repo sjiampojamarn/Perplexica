@@ -39,10 +39,10 @@ export const loadGroqChatModels = async () => {
           baseURL: 'https://api.groq.com/openai/v1',
         },
       ),
-      'LLaMA3 groq 8b': new ChatOpenAI(
+      'LLaMA3 groq 70b': new ChatOpenAI(
         {
           openAIApiKey: groqApiKey,
-          modelName: 'llama3-groq-8b-8192-tool-use-preview',
+          modelName: 'llama3-groq-70b-8192-tool-use-preview',
           temperature: 0.7,
         },
         {
@@ -53,6 +53,16 @@ export const loadGroqChatModels = async () => {
         {
           openAIApiKey: groqApiKey,
           modelName: 'llama3-8b-8192',
+          temperature: 0.7,
+        },
+        {
+          baseURL: 'https://api.groq.com/openai/v1',
+        },
+      ),
+      'LLaMA3 groq 8b': new ChatOpenAI(
+        {
+          openAIApiKey: groqApiKey,
+          modelName: 'llama3-groq-8b-8192-tool-use-preview',
           temperature: 0.7,
         },
         {
