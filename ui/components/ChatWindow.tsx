@@ -471,7 +471,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
     let recievedMessage = '';
     let added = false;
 
-    const messageId = crypto.randomBytes(7).toString('hex');
+    messageId = messageId ?? crypto.randomBytes(7).toString('hex');
     let userSessionId = localStorage.getItem('userSessionId');
 
     ws.send(
