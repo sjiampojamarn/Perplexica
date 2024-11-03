@@ -9,12 +9,12 @@ export const loadGroqChatModels = async () => {
 
   try {
     const chatModels = {
-      'llama-3.3-70b-versatile': {
-        displayName: 'Llama 3.3 70B',
+      'llama-3.1-8b-instant': {
+        displayName: 'Llama 3.1 8B',
         model: new ChatOpenAI(
           {
             openAIApiKey: groqApiKey,
-            modelName: 'llama-3.3-70b-versatile',
+            modelName: 'llama-3.1-8b-instant',
             temperature: 0.7,
           },
           {
@@ -61,12 +61,12 @@ export const loadGroqChatModels = async () => {
           },
         ),
       },
-      'llama-3.1-8b-instant': {
-        displayName: 'Llama 3.1 8B',
+      'llama-3.1-70b-versatile': {
+        displayName: 'Llama 3.1 70B',
         model: new ChatOpenAI(
           {
             openAIApiKey: groqApiKey,
-            modelName: 'llama-3.1-8b-instant',
+            modelName: 'llama-3.1-70b-versatile',
             temperature: 0.7,
           },
           {
