@@ -8,11 +8,11 @@ router.get('/', async (req, res) => {
   try {
     const data = (
       await Promise.all([
-        searchSearxng('site:businessinsider.com', {
+        searchSearxng('site:www.forbes.com', {
           engines: ['bing news'],
           pageno: 1,
         }),
-        searchSearxng('site:www.npr.org', {
+        searchSearxng('site:www.wsj.com', {
           engines: ['bing news'],
           pageno: 1,
         }),
@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
           engines: ['bing news'],
           pageno: 1,
         }),
-        searchSearxng('site:www.nbcnews.com', {
+        searchSearxng('site:www.nbcbayarea.com', {
           engines: ['bing news'],
           pageno: 1,
         }),
