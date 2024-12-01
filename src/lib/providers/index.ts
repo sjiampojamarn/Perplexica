@@ -7,17 +7,16 @@ import { loadGeminiChatModels, loadGeminiEmbeddingsModels } from './gemini';
 
 const chatModelProviders = {
 //  openai: loadOpenAIChatModels,
-  groq: loadGroqChatModels,
-  anthropic: loadAnthropicChatModels,
   gemini: loadGeminiChatModels,
+  groq: loadGroqChatModels,
+//  anthropic: loadAnthropicChatModels,
 //  ollama: loadOllamaChatModels,
 };
 
 const embeddingModelProviders = {
 //  openai: loadOpenAIEmbeddingsModels,
-  local: loadTransformersEmbeddingsModels,
-  ollama: loadOllamaEmbeddingsModels,
   gemini: loadGeminiEmbeddingsModels,
+  local: loadTransformersEmbeddingsModels,
 //  ollama: loadOllamaEmbeddingsModels,
 };
 
