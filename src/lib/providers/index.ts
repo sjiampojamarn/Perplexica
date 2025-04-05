@@ -82,11 +82,11 @@ export const chatModelProviders: Record<
   string,
   () => Promise<Record<string, ChatModel>>
 > = {
+  gemini: loadGeminiChatModels,
   openai: loadOpenAIChatModels,
   ollama: loadOllamaChatModels,
   groq: loadGroqChatModels,
   anthropic: loadAnthropicChatModels,
-  gemini: loadGeminiChatModels,
   deepseek: loadDeepseekChatModels,
   aimlapi: loadAimlApiChatModels,
   lmstudio: loadLMStudioChatModels,
@@ -97,9 +97,9 @@ export const embeddingModelProviders: Record<
   string,
   () => Promise<Record<string, EmbeddingModel>>
 > = {
+  gemini: loadGeminiEmbeddingModels,
   openai: loadOpenAIEmbeddingModels,
   ollama: loadOllamaEmbeddingModels,
-  gemini: loadGeminiEmbeddingModels,
   transformers: loadTransformersEmbeddingsModels,
   aimlapi: loadAimlApiEmbeddingModels,
   lmstudio: loadLMStudioEmbeddingsModels,
