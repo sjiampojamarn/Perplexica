@@ -1,7 +1,13 @@
 'use client';
 
-import { Message } from '@/components/ChatWindow';
-import { Block } from '@/lib/types';
+import {
+  AssistantMessage,
+  ChatTurn,
+  Message,
+  SourceMessage,
+  SuggestionMessage,
+  UserMessage,
+} from '@/components/ChatWindow';
 import {
   createContext,
   useContext,
@@ -16,25 +22,25 @@ import { toast } from 'sonner';
 import { getSuggestions } from '../actions';
 import { MinimalProvider } from '../models/types';
 import { getAutoMediaSearch } from '../config/clientRegistry';
-import { applyPatch } from 'rfc6902';
-import { Widget } from '@/components/ChatWindow';
 
 export type Section = {
-  message: Message;
-  widgets: Widget[];
-  parsedTextBlocks: string[];
-  speechMessage: string;
+  userMessage: UserMessage;
+  assistantMessage: AssistantMessage | undefined;
+  parsedAssistantMessage: string | undefined;
+  speechMessage: string | undefined;
+  sourceMessage: SourceMessage | undefined;
   thinkingEnded: boolean;
   suggestions?: string[];
 };
 
 type ChatContext = {
   messages: Message[];
+  chatTurns: ChatTurn[];
   sections: Section[];
   chatHistory: [string, string][];
   files: File[];
   fileIds: string[];
-  sources: string[];
+  focusMode: string;
   chatId: string | undefined;
   optimizationMode: string;
   isMessagesLoaded: boolean;
@@ -45,10 +51,8 @@ type ChatContext = {
   hasError: boolean;
   chatModelProvider: ChatModelProvider;
   embeddingModelProvider: EmbeddingModelProvider;
-  researchEnded: boolean;
-  setResearchEnded: (ended: boolean) => void;
   setOptimizationMode: (mode: string) => void;
-  setSources: (sources: string[]) => void;
+  setFocusMode: (mode: string) => void;
   setFiles: (files: File[]) => void;
   setFileIds: (fileIds: string[]) => void;
   sendMessage: (
@@ -90,6 +94,18 @@ const checkConfig = async (
     let embeddingModelProviderId = localStorage.getItem(
       'embeddingModelProviderId',
     );
+
+    let userSessionId = localStorage.getItem('userSessionId');
+    if (!userSessionId) {
+      userSessionId = crypto.randomBytes(20).toString('hex');
+      localStorage.setItem('userSessionId', userSessionId!)
+    }
+
+    let maxRecordLimit = localStorage.getItem('maxRecordLimit');
+    if (!maxRecordLimit) {
+      maxRecordLimit = '20';
+      localStorage.setItem('maxRecordLimit', maxRecordLimit);
+    }
 
     const res = await fetch(`/api/providers`, {
       headers: {
@@ -175,8 +191,8 @@ const loadMessages = async (
   chatId: string,
   setMessages: (messages: Message[]) => void,
   setIsMessagesLoaded: (loaded: boolean) => void,
-  chatHistory: React.MutableRefObject<[string, string][]>,
-  setSources: (sources: string[]) => void,
+  setChatHistory: (history: [string, string][]) => void,
+  setFocusMode: (mode: string) => void,
   setNotFound: (notFound: boolean) => void,
   setFiles: (files: File[]) => void,
   setFileIds: (fileIds: string[]) => void,
@@ -200,26 +216,18 @@ const loadMessages = async (
 
   setMessages(messages);
 
-  const history: [string, string][] = [];
-  messages.forEach((msg) => {
-    history.push(['human', msg.query]);
+  const chatTurns = messages.filter(
+    (msg): msg is ChatTurn => msg.role === 'user' || msg.role === 'assistant',
+  );
 
-    const textBlocks = msg.responseBlocks
-      .filter(
-        (block): block is Block & { type: 'text' } => block.type === 'text',
-      )
-      .map((block) => block.data)
-      .join('\n');
-
-    if (textBlocks) {
-      history.push(['assistant', textBlocks]);
-    }
-  });
+  const history = chatTurns.map((msg) => {
+    return [msg.role, msg.content];
+  }) as [string, string][];
 
   console.debug(new Date(), 'app:messages_loaded');
 
-  if (messages.length > 0) {
-    document.title = messages[0].query;
+  if (chatTurns.length > 0) {
+    document.title = chatTurns[0].content;
   }
 
   const files = data.chat.files.map((file: any) => {
@@ -233,8 +241,8 @@ const loadMessages = async (
   setFiles(files);
   setFileIds(files.map((file: File) => file.fileId));
 
-  chatHistory.current = history;
-  setSources(data.chat.sources);
+  setChatHistory(history);
+  setFocusMode(data.chat.focusMode);
   setIsMessagesLoaded(true);
 };
 
@@ -243,33 +251,31 @@ export const chatContext = createContext<ChatContext>({
   chatId: '',
   fileIds: [],
   files: [],
-  sources: [],
+  focusMode: '',
   hasError: false,
   isMessagesLoaded: false,
   isReady: false,
   loading: false,
   messageAppeared: false,
   messages: [],
+  chatTurns: [],
   sections: [],
   notFound: false,
   optimizationMode: '',
   chatModelProvider: { key: '', providerId: '' },
   embeddingModelProvider: { key: '', providerId: '' },
-  researchEnded: false,
   rewrite: () => {},
   sendMessage: async () => {},
   setFileIds: () => {},
   setFiles: () => {},
-  setSources: () => {},
+  setFocusMode: () => {},
   setOptimizationMode: () => {},
   setChatModelProvider: () => {},
   setEmbeddingModelProvider: () => {},
-  setResearchEnded: () => {},
 });
 
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const params: { chatId: string } = useParams();
-
   const searchParams = useSearchParams();
   const initialMessage = searchParams.get('q');
 
@@ -279,15 +285,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(false);
   const [messageAppeared, setMessageAppeared] = useState(false);
 
-  const [researchEnded, setResearchEnded] = useState(false);
-
-  const chatHistory = useRef<[string, string][]>([]);
+  const [chatHistory, setChatHistory] = useState<[string, string][]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [fileIds, setFileIds] = useState<string[]>([]);
 
-  const [sources, setSources] = useState<string[]>(['web']);
+  const [focusMode, setFocusMode] = useState('webSearch');
   const [optimizationMode, setOptimizationMode] = useState('speed');
 
   const [isMessagesLoaded, setIsMessagesLoaded] = useState(false);
@@ -313,44 +317,66 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const messagesRef = useRef<Message[]>([]);
 
+  const chatTurns = useMemo((): ChatTurn[] => {
+    return messages.filter(
+      (msg): msg is ChatTurn => msg.role === 'user' || msg.role === 'assistant',
+    );
+  }, [messages]);
+
   const sections = useMemo<Section[]>(() => {
-    return messages.map((msg) => {
-      const textBlocks: string[] = [];
-      let speechMessage = '';
-      let thinkingEnded = false;
-      let suggestions: string[] = [];
+    const sections: Section[] = [];
 
-      const sourceBlocks = msg.responseBlocks.filter(
-        (block): block is Block & { type: 'source' } => block.type === 'source',
-      );
-      const sources = sourceBlocks.flatMap((block) => block.data);
+    messages.forEach((msg, i) => {
+      if (msg.role === 'user') {
+        const nextUserMessageIndex = messages.findIndex(
+          (m, j) => j > i && m.role === 'user',
+        );
 
-      const widgetBlocks = msg.responseBlocks
-        .filter((b) => b.type === 'widget')
-        .map((b) => b.data) as Widget[];
+        const aiMessage = messages.find(
+          (m, j) =>
+            j > i &&
+            m.role === 'assistant' &&
+            (nextUserMessageIndex === -1 || j < nextUserMessageIndex),
+        ) as AssistantMessage | undefined;
 
-      msg.responseBlocks.forEach((block) => {
-        if (block.type === 'text') {
-          let processedText = block.data;
+        const sourceMessage = messages.find(
+          (m, j) =>
+            j > i &&
+            m.role === 'source' &&
+            m.sources &&
+            (nextUserMessageIndex === -1 || j < nextUserMessageIndex),
+        ) as SourceMessage | undefined;
+
+        let thinkingEnded = false;
+        let processedMessage = aiMessage?.content ?? '';
+        let speechMessage = aiMessage?.content ?? '';
+        let suggestions: string[] = [];
+
+        if (aiMessage) {
           const citationRegex = /\[([^\]]+)\]/g;
           const regex = /\[(\d+)\]/g;
 
-          if (processedText.includes('<think>')) {
-            const openThinkTag = processedText.match(/<think>/g)?.length || 0;
+          if (processedMessage.includes('<think>')) {
+            const openThinkTag =
+              processedMessage.match(/<think>/g)?.length || 0;
             const closeThinkTag =
-              processedText.match(/<\/think>/g)?.length || 0;
+              processedMessage.match(/<\/think>/g)?.length || 0;
 
             if (openThinkTag && !closeThinkTag) {
-              processedText += '</think> <a> </a>';
+              processedMessage += '</think> <a> </a>';
             }
           }
 
-          if (block.data.includes('</think>')) {
+          if (aiMessage.content.includes('</think>')) {
             thinkingEnded = true;
           }
 
-          if (sources.length > 0) {
-            processedText = processedText.replace(
+          if (
+            sourceMessage &&
+            sourceMessage.sources &&
+            sourceMessage.sources.length > 0
+          ) {
+            processedMessage = processedMessage.replace(
               citationRegex,
               (_, capturedContent: string) => {
                 const numbers = capturedContent
@@ -365,7 +391,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                       return `[${numStr}]`;
                     }
 
-                    const source = sources[number - 1];
+                    const source = sourceMessage.sources?.[number - 1];
                     const url = source?.metadata?.url;
 
                     if (url) {
@@ -379,86 +405,38 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                 return linksHtml;
               },
             );
-            speechMessage += block.data.replace(regex, '');
+            speechMessage = aiMessage.content.replace(regex, '');
           } else {
-            processedText = processedText.replace(regex, '');
-            speechMessage += block.data.replace(regex, '');
+            processedMessage = processedMessage.replace(regex, '');
+            speechMessage = aiMessage.content.replace(regex, '');
           }
 
-          textBlocks.push(processedText);
-        } else if (block.type === 'suggestion') {
-          suggestions = block.data;
+          const suggestionMessage = messages.find(
+            (m, j) =>
+              j > i &&
+              m.role === 'suggestion' &&
+              (nextUserMessageIndex === -1 || j < nextUserMessageIndex),
+          ) as SuggestionMessage | undefined;
+
+          if (suggestionMessage && suggestionMessage.suggestions.length > 0) {
+            suggestions = suggestionMessage.suggestions;
+          }
         }
-      });
 
-      return {
-        message: msg,
-        parsedTextBlocks: textBlocks,
-        speechMessage,
-        thinkingEnded,
-        suggestions,
-        widgets: widgetBlocks,
-      };
-    });
-  }, [messages]);
-
-  const isReconnectingRef = useRef(false);
-  const handledMessageEndRef = useRef<Set<string>>(new Set());
-
-  const checkReconnect = async () => {
-    if (isReconnectingRef.current) return;
-
-    setIsReady(true);
-    console.debug(new Date(), 'app:ready');
-
-    if (messages.length > 0) {
-      const lastMsg = messages[messages.length - 1];
-
-      if (lastMsg.status === 'answering') {
-        setLoading(true);
-        setResearchEnded(false);
-        setMessageAppeared(false);
-
-        isReconnectingRef.current = true;
-
-        const res = await fetch(`/api/reconnect/${lastMsg.backendId}`, {
-          method: 'POST',
+        sections.push({
+          userMessage: msg,
+          assistantMessage: aiMessage,
+          sourceMessage: sourceMessage,
+          parsedAssistantMessage: processedMessage,
+          speechMessage,
+          thinkingEnded,
+          suggestions: suggestions,
         });
-
-        if (!res.body) throw new Error('No response body');
-
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder('utf-8');
-
-        let partialChunk = '';
-
-        const messageHandler = getMessageHandler(lastMsg);
-
-        try {
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            partialChunk += decoder.decode(value, { stream: true });
-
-            try {
-              const messages = partialChunk.split('\n');
-              for (const msg of messages) {
-                if (!msg.trim()) continue;
-                const json = JSON.parse(msg);
-                messageHandler(json);
-              }
-              partialChunk = '';
-            } catch (error) {
-              console.warn('Incomplete JSON, waiting for next chunk...');
-            }
-          }
-        } finally {
-          isReconnectingRef.current = false;
-        }
       }
-    }
-  };
+    });
+
+    return sections;
+  }, [messages]);
 
   useEffect(() => {
     checkConfig(
@@ -474,7 +452,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (params.chatId && params.chatId !== chatId) {
       setChatId(params.chatId);
       setMessages([]);
-      chatHistory.current = [];
+      setChatHistory([]);
       setFiles([]);
       setFileIds([]);
       setIsMessagesLoaded(false);
@@ -494,8 +472,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         chatId,
         setMessages,
         setIsMessagesLoaded,
-        chatHistory,
-        setSources,
+        setChatHistory,
+        setFocusMode,
         setNotFound,
         setFiles,
         setFileIds,
@@ -513,27 +491,34 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [messages]);
 
   useEffect(() => {
-    if (isMessagesLoaded && isConfigReady && newChatCreated) {
+    if (isMessagesLoaded && isConfigReady) {
       setIsReady(true);
       console.debug(new Date(), 'app:ready');
-    } else if (isMessagesLoaded && isConfigReady && !newChatCreated) {
-      checkReconnect();
     } else {
       setIsReady(false);
     }
-  }, [isMessagesLoaded, isConfigReady, newChatCreated]);
+  }, [isMessagesLoaded, isConfigReady]);
 
   const rewrite = (messageId: string) => {
     const index = messages.findIndex((msg) => msg.messageId === messageId);
+    const chatTurnsIndex = chatTurns.findIndex(
+      (msg) => msg.messageId === messageId,
+    );
 
     if (index === -1) return;
 
-    setMessages((prev) => prev.slice(0, index));
+    const message = chatTurns[chatTurnsIndex - 1];
 
-    chatHistory.current = chatHistory.current.slice(0, index * 2);
+    setMessages((prev) => {
+      return [
+        ...prev.slice(0, messages.length > 2 ? messages.indexOf(message) : 0),
+      ];
+    });
+    setChatHistory((prev) => {
+      return [...prev.slice(0, chatTurns.length > 2 ? chatTurnsIndex - 1 : 0)];
+    });
 
-    const messageToRewrite = messages[index];
-    sendMessage(messageToRewrite.query, messageToRewrite.messageId, true);
+    sendMessage(message.content, message.messageId, true);
   };
 
   useEffect(() => {
@@ -547,118 +532,96 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConfigReady, isReady, initialMessage]);
 
-  const getMessageHandler = (message: Message) => {
-    const messageId = message.messageId;
+  const sendMessage: ChatContext['sendMessage'] = async (
+    message,
+    messageId,
+    rewrite = false,
+  ) => {
+    if (loading || !message) return;
+    setLoading(true);
+    setMessageAppeared(false);
 
-    return async (data: any) => {
+    if (messages.length <= 1) {
+      window.history.replaceState(null, '', `/c/${chatId}`);
+    }
+
+    let recievedMessage = '';
+    let added = false;
+
+    messageId = messageId ?? crypto.randomBytes(7).toString('hex');
+    let userSessionId = localStorage.getItem('userSessionId');
+
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      {
+        content: message,
+        messageId: messageId,
+        chatId: chatId!,
+        role: 'user',
+        createdAt: new Date(),
+      },
+    ]);
+
+    const messageHandler = async (data: any) => {
       if (data.type === 'error') {
         toast.error(data.data);
         setLoading(false);
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageId === messageId
-              ? { ...msg, status: 'error' as const }
-              : msg,
-          ),
-        );
         return;
       }
 
-      if (data.type === 'researchComplete') {
-        setResearchEnded(true);
-        if (
-          message.responseBlocks.find(
-            (b) => b.type === 'source' && b.data.length > 0,
-          )
-        ) {
+      if (data.type === 'sources') {
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            messageId: data.messageId,
+            chatId: chatId!,
+            role: 'source',
+            sources: data.data,
+            createdAt: new Date(),
+          },
+        ]);
+        if (data.data.length > 0) {
           setMessageAppeared(true);
         }
       }
 
-      if (data.type === 'block') {
-        setMessages((prev) =>
-          prev.map((msg) => {
-            if (msg.messageId === messageId) {
-              const exists = msg.responseBlocks.findIndex(
-                (b) => b.id === data.block.id,
-              );
-
-              if (exists !== -1) {
-                const existingBlocks = [...msg.responseBlocks];
-                existingBlocks[exists] = data.block;
-
-                return {
-                  ...msg,
-                  responseBlocks: existingBlocks,
-                };
+      if (data.type === 'message') {
+        if (!added) {
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            {
+              content: data.data,
+              messageId: data.messageId,
+              chatId: chatId!,
+              role: 'assistant',
+              createdAt: new Date(),
+            },
+          ]);
+          added = true;
+          setMessageAppeared(true);
+        } else {
+          setMessages((prev) =>
+            prev.map((message) => {
+              if (
+                message.messageId === data.messageId &&
+                message.role === 'assistant'
+              ) {
+                return { ...message, content: message.content + data.data };
               }
 
-              return {
-                ...msg,
-                responseBlocks: [...msg.responseBlocks, data.block],
-              };
-            }
-            return msg;
-          }),
-        );
-
-        if (
-          (data.block.type === 'source' && data.block.data.length > 0) ||
-          data.block.type === 'text'
-        ) {
-          setMessageAppeared(true);
+              return message;
+            }),
+          );
         }
-      }
-
-      if (data.type === 'updateBlock') {
-        setMessages((prev) =>
-          prev.map((msg) => {
-            if (msg.messageId === messageId) {
-              const updatedBlocks = msg.responseBlocks.map((block) => {
-                if (block.id === data.blockId) {
-                  const updatedBlock = { ...block };
-                  applyPatch(updatedBlock, data.patch);
-                  return updatedBlock;
-                }
-                return block;
-              });
-              return { ...msg, responseBlocks: updatedBlocks };
-            }
-            return msg;
-          }),
-        );
+        recievedMessage += data.data;
       }
 
       if (data.type === 'messageEnd') {
-        if (handledMessageEndRef.current.has(messageId)) {
-          return;
-        }
-
-        handledMessageEndRef.current.add(messageId);
-
-        const currentMsg = messagesRef.current.find(
-          (msg) => msg.messageId === messageId,
-        );
-
-        const newHistory: [string, string][] = [
-          ...chatHistory.current,
-          ['human', message.query],
-          [
-            'assistant',
-            currentMsg?.responseBlocks.find((b) => b.type === 'text')?.data ||
-              '',
-          ],
-        ];
-
-        chatHistory.current = newHistory;
-
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageId === messageId
-              ? { ...msg, status: 'completed' as const }
-              : msg,
-          ),
-        );
+        setChatHistory((prevHistory) => [
+          ...prevHistory,
+          ['human', message],
+          ['assistant', recievedMessage],
+        ]);
 
         setLoading(false);
 
@@ -667,78 +630,50 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         const autoMediaSearch = getAutoMediaSearch();
 
         if (autoMediaSearch) {
-          setTimeout(() => {
-            document
-              .getElementById(`search-images-${lastMsg.messageId}`)
-              ?.click();
+          document
+            .getElementById(`search-images-${lastMsg.messageId}`)
+            ?.click();
 
-            document
-              .getElementById(`search-videos-${lastMsg.messageId}`)
-              ?.click();
-          }, 200);
+          document
+            .getElementById(`search-videos-${lastMsg.messageId}`)
+            ?.click();
         }
 
-        // Check if there are sources and no suggestions
+        /* Check if there are sources after message id's index and no suggestions */
 
-        const hasSourceBlocks = currentMsg?.responseBlocks.some(
-          (block) => block.type === 'source' && block.data.length > 0,
-        );
-        const hasSuggestions = currentMsg?.responseBlocks.some(
-          (block) => block.type === 'suggestion',
+        const userMessageIndex = messagesRef.current.findIndex(
+          (msg) => msg.messageId === messageId && msg.role === 'user',
         );
 
-        if (hasSourceBlocks && !hasSuggestions) {
-          const suggestions = await getSuggestions(newHistory);
-          const suggestionBlock: Block = {
-            id: crypto.randomBytes(7).toString('hex'),
-            type: 'suggestion',
-            data: suggestions,
-          };
+        const sourceMessage = messagesRef.current.find(
+          (msg, i) => i > userMessageIndex && msg.role === 'source',
+        ) as SourceMessage | undefined;
 
-          setMessages((prev) =>
-            prev.map((msg) => {
-              if (msg.messageId === messageId) {
-                return {
-                  ...msg,
-                  responseBlocks: [...msg.responseBlocks, suggestionBlock],
-                };
-              }
-              return msg;
-            }),
-          );
+        const suggestionMessageIndex = messagesRef.current.findIndex(
+          (msg, i) => i > userMessageIndex && msg.role === 'suggestion',
+        );
+
+        if (
+          sourceMessage &&
+          sourceMessage.sources.length > 0 &&
+          suggestionMessageIndex == -1
+        ) {
+          const suggestions = await getSuggestions(messagesRef.current);
+          setMessages((prev) => {
+            return [
+              ...prev,
+              {
+                role: 'suggestion',
+                suggestions: suggestions,
+                chatId: chatId!,
+                createdAt: new Date(),
+                messageId: crypto.randomBytes(7).toString('hex'),
+              },
+            ];
+          });
         }
       }
     };
-  };
-
-  const sendMessage: ChatContext['sendMessage'] = async (
-    message,
-    messageId,
-    rewrite = false,
-  ) => {
-    if (loading || !message) return;
-    setLoading(true);
-    setResearchEnded(false);
-    setMessageAppeared(false);
-
-    if (messages.length <= 1) {
-      window.history.replaceState(null, '', `/c/${chatId}`);
-    }
-
-    messageId = messageId ?? crypto.randomBytes(7).toString('hex');
-    const backendId = crypto.randomBytes(20).toString('hex');
-
-    const newMessage: Message = {
-      messageId,
-      chatId: chatId!,
-      backendId,
-      query: message,
-      responseBlocks: [],
-      status: 'answering',
-      createdAt: new Date(),
-    };
-
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     const messageIndex = messages.findIndex((m) => m.messageId === messageId);
 
@@ -753,17 +688,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           messageId: messageId,
           chatId: chatId!,
           content: message,
+          userSessionId: userSessionId,
         },
         chatId: chatId!,
         files: fileIds,
-        sources: sources,
+        focusMode: focusMode,
         optimizationMode: optimizationMode,
         history: rewrite
-          ? chatHistory.current.slice(
-              0,
-              messageIndex === -1 ? undefined : messageIndex,
-            )
-          : chatHistory.current,
+          ? chatHistory.slice(0, messageIndex === -1 ? undefined : messageIndex)
+          : chatHistory,
         chatModel: {
           key: chatModelProvider.key,
           providerId: chatModelProvider.providerId,
@@ -782,8 +715,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     const decoder = new TextDecoder('utf-8');
 
     let partialChunk = '';
-
-    const messageHandler = getMessageHandler(newMessage);
 
     while (true) {
       const { value, done } = await reader.read();
@@ -809,11 +740,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     <chatContext.Provider
       value={{
         messages,
+        chatTurns,
         sections,
-        chatHistory: chatHistory.current,
+        chatHistory,
         files,
         fileIds,
-        sources,
+        focusMode,
         chatId,
         hasError,
         isMessagesLoaded,
@@ -824,7 +756,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         optimizationMode,
         setFileIds,
         setFiles,
-        setSources,
+        setFocusMode,
         setOptimizationMode,
         rewrite,
         sendMessage,
@@ -832,8 +764,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         chatModelProvider,
         embeddingModelProvider,
         setEmbeddingModelProvider,
-        researchEnded,
-        setResearchEnded,
       }}
     >
       {children}
