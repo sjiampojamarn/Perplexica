@@ -50,16 +50,17 @@ export const GET = async (req: Request) => {
       });
     }
 
-    config['openaiApiKey'] = getOpenaiApiKey();
-    config['ollamaApiUrl'] = getOllamaApiEndpoint();
-    config['lmStudioApiUrl'] = getLMStudioApiEndpoint();
-    config['anthropicApiKey'] = getAnthropicApiKey();
-    config['groqApiKey'] = getGroqApiKey();
-    config['geminiApiKey'] = getGeminiApiKey();
-    config['deepseekApiKey'] = getDeepseekApiKey();
-    config['customOpenaiApiUrl'] = getCustomOpenaiApiUrl();
-    config['customOpenaiApiKey'] = getCustomOpenaiApiKey();
-    config['customOpenaiModelName'] = getCustomOpenaiModelName();
+    // SJ: Disable getting api keys
+    // config['openaiApiKey'] = getOpenaiApiKey();
+    // config['ollamaApiUrl'] = getOllamaApiEndpoint();
+    // config['lmStudioApiUrl'] = getLMStudioApiEndpoint();
+    // config['anthropicApiKey'] = getAnthropicApiKey();
+    // config['groqApiKey'] = getGroqApiKey();
+    // config['geminiApiKey'] = getGeminiApiKey();
+    // config['deepseekApiKey'] = getDeepseekApiKey();
+    // config['customOpenaiApiUrl'] = getCustomOpenaiApiUrl();
+    // config['customOpenaiApiKey'] = getCustomOpenaiApiKey();
+    // config['customOpenaiModelName'] = getCustomOpenaiModelName();
 
     return Response.json({ ...config }, { status: 200 });
   } catch (err) {
@@ -106,7 +107,8 @@ export const POST = async (req: Request) => {
       },
     };
 
-    updateConfig(updatedConfig);
+  // Disable updating api keys 
+  // updateConfig(updatedConfig);
 
     return Response.json({ message: 'Config updated' }, { status: 200 });
   } catch (err) {
