@@ -17,6 +17,7 @@ const messageSchema = z.object({
   messageId: z.string().min(1, 'Message ID is required'),
   chatId: z.string().min(1, 'Chat ID is required'),
   content: z.string().min(1, 'Message content is required'),
+  userSessionId: z.string().optional().default(''),
 });
 
 const chatModelSchema: z.ZodType<ModelWithProvider> = z.object({
@@ -73,6 +74,7 @@ const ensureChatExists = async (input: {
   sources: SearchSources[];
   query: string;
   fileIds: string[];
+  userSessionId: string;
 }) => {
   try {
     const exists = await db.query.chats
@@ -81,12 +83,15 @@ const ensureChatExists = async (input: {
       })
       .execute();
 
+    const currentDate = new Date();
     if (!exists) {
       await db.insert(chats).values({
         id: input.id,
         createdAt: new Date().toISOString(),
         sources: input.sources,
         title: input.query,
+        userSessionId: input.userSessionId,
+        timestamp: currentDate.toISOString(),
         files: input.fileIds.map((id) => {
           return {
             fileId: id,
@@ -230,6 +235,7 @@ export const POST = async (req: Request) => {
       sources: body.sources as SearchSources[],
       fileIds: body.files,
       query: body.message.content,
+      userSessionId: body.message.userSessionId,
     });
 
     req.signal.addEventListener('abort', () => {
