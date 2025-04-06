@@ -9,8 +9,8 @@ import { Embeddings } from '@langchain/core/embeddings';
 
 const geminiChatModels: Record<string, string>[] = [
   {
-    displayName: 'Gemini 2.0 Flash-Lite',
-    key: 'gemini-2.0-flash-lite',
+    displayName: 'Gemini 2.0 Flash',
+    key: 'gemini-2.0-flash',
   },
   {
     displayName: 'Gemini 2.5 Pro Experimental',
