@@ -22,6 +22,10 @@ const geminiChatModels: Record<string, string>[] = [
     key: 'gemini-2.5-pro-preview-05-06',
   },
   {
+    displayName: 'Gemini 2.0 Flash-Lite',
+    key: 'gemini-2.0-flash-lite',
+  },
+  {
     displayName: 'Gemini 2.5 Pro Experimental',
     key: 'gemini-2.5-pro-preview-05-06',
   },
