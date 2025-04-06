@@ -29,6 +29,13 @@ const messageSchema = z.object({
   userSessionId: z.string().optional(),
 });
 
+// counter to keep track of requests per minute
+let requestsPerMinute = 0;
+// reset the counter every minute
+setInterval(() => {
+  requestsPerMinute = 0;
+}, 60000);
+
 const chatModelSchema = z.object({
   provider: z.string().optional(),
   name: z.string().optional(),
@@ -260,10 +267,15 @@ export const POST = async (req: Request) => {
       chatModelProviders[
         body.chatModel?.provider || Object.keys(chatModelProviders)[0]
       ];
-    const chatModel =
+    let chatModel =
       chatModelProvider[
         body.chatModel?.name || Object.keys(chatModelProvider)[0]
       ];
+
+    // if the request per minute is greater than the limit, choose a backup model
+    if (requestsPerMinute > 5) {
+      chatModel = chatModelProvider[Object.keys(chatModelProvider)[1]];
+    }
 
     const embeddingProvider =
       embeddingModelProviders[
@@ -326,6 +338,13 @@ export const POST = async (req: Request) => {
         { status: 400 },
       );
     }
+
+    // increase requests per minute
+    requestsPerMinute++;
+
+    // debug request per minute and model used
+    console.log('Requests per minute: ', requestsPerMinute);
+    console.log('Model used: ', chatModel.displayName);
 
     const stream = await handler.searchAndAnswer(
       message.content,
