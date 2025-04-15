@@ -24,4 +24,6 @@ COPY --from=builder /home/perplexica/data ./data
 
 RUN mkdir /home/perplexica/uploads
 
+RUN apt-get -y update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+
 CMD ["node", "server.js"]
