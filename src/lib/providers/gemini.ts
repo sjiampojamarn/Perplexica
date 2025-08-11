@@ -14,6 +14,10 @@ import { Embeddings } from '@langchain/core/embeddings';
 
 const geminiChatModels: Record<string, string>[] = [
   {
+    displayName: 'Gemini 2.5 Flash-Lite',
+    key: 'gemini-2.5-flash-lite',
+  },
+  {
     displayName: 'Gemini 2.5 Flash',
     key: 'gemini-2.5-flash',
   },
