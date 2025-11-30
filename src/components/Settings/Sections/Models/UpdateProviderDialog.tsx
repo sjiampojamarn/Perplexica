@@ -28,10 +28,11 @@ const UpdateProvider = ({
       name: modelProvider.name,
     };
 
-    fields.forEach((field) => {
-      config[field.key] =
-        modelProvider.config[field.key] || field.default || '';
-    });
+    // SJ: disable setting providers
+    // fields.forEach((field) => {
+    //  config[field.key] =
+    //    modelProvider.config[field.key] || field.default || '';
+    // });
 
     setConfig(config);
   }, [fields]);
@@ -47,7 +48,8 @@ const UpdateProvider = ({
         },
         body: JSON.stringify({
           name: name,
-          config: config,
+          // SJ: disable updating config
+          // config: config,
         }),
       });
 
@@ -133,7 +135,8 @@ const UpdateProvider = ({
                         />
                       </div>
 
-                      {fields.map((field: UIConfigField) => (
+                      { /* SJ: disable view/updating config 
+                        fields.map((field: UIConfigField) => (
                         <div
                           key={field.key}
                           className="flex flex-col items-start space-y-2"
@@ -158,7 +161,7 @@ const UpdateProvider = ({
                             required={field.required}
                           />
                         </div>
-                      ))}
+                      )) */}
                     </div>
                   </div>
                   <div className="border-t border-light-200 dark:border-dark-200" />
