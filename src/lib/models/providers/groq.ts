@@ -40,12 +40,17 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
 
       const data = await res.json();
 
-      const models: Model[] = data.data.map((m: any) => {
+      // SJ: default models for free tier friendly models
+      let models: Model[] = [{
+        name: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        key: 'meta-llama/llama-4-scout-17b-16e-instruct'
+      }];
+      models.push(...data.data.map((m: any) => {
         return {
           name: m.id,
           key: m.id,
         };
-      });
+      }));
 
       return {
         embedding: [],
