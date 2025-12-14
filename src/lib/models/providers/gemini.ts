@@ -44,8 +44,19 @@ class GeminiProvider extends BaseModelProvider<GeminiConfig> {
 
     const data = await res.json();
 
-    let defaultEmbeddingModels: Model[] = [];
-    let defaultChatModels: Model[] = [];
+    // SJ: default models for free tier friendly models
+    let defaultEmbeddingModels: Model[] = [
+      {
+        key: 'models/gemini-embedding-001',
+        name: 'Gemini Embedding 001',
+      }
+    ];
+    let defaultChatModels: Model[] = [
+      {
+        key: 'models/gemini-2.0-flash-lite',
+        name: 'Gemini 2.0 Flash Lite',
+      }
+    ];
 
     data.models.forEach((m: any) => {
       if (
