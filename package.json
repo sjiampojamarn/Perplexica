@@ -18,7 +18,7 @@
     "@icons-pack/react-simple-icons": "^12.3.0",
     "@langchain/anthropic": "^1.0.0",
     "@langchain/community": "^1.0.0",
-    "@langchain/core": "^1.0.1",
+    "@langchain/core": "^1.1.8",
     "@langchain/google-genai": "^1.0.0",
     "@langchain/groq": "^1.0.0",
     "@langchain/ollama": "^1.0.0",
