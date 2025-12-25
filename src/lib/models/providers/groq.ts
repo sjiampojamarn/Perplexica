@@ -42,8 +42,8 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
 
       // SJ: default models for free tier friendly models
       let models: Model[] = [{
-        name: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        key: 'meta-llama/llama-4-scout-17b-16e-instruct'
+        name: 'groq/compound-mini',
+        key: 'groq/compound-mini'
       }];
       models.push(...data.data.map((m: any) => {
         return {
