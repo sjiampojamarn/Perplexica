@@ -39,7 +39,25 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
 
     const data = await res.json();
 
-    const defaultChatModels: Model[] = [];
+    // SJ: default models for free tier friendly models
+    const defaultChatModels: Model[] = [
+      {
+        name: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        key: 'meta-llama/llama-4-scout-17b-16e-instruct'
+      },
+      {
+        name: 'llama-3.3-70b-versatile',
+        key: 'llama-3.3-70b-versatile'
+      },
+      {
+        name: 'moonshotai/kimi-k2-instruct',
+        key: 'moonshotai/kimi-k2-instruct'
+      },
+      {
+        name: 'moonshotai/kimi-k2-instruct-0905',
+        key: 'moonshotai/kimi-k2-instruct-0905'
+      }
+    ];
 
     data.data.forEach((m: any) => {
       defaultChatModels.push({
