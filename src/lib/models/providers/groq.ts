@@ -42,9 +42,22 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
 
       // SJ: default models for free tier friendly models
       let models: Model[] = [{
-        name: 'groq/compound-mini',
-        key: 'groq/compound-mini'
-      }];
+        name: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        key: 'meta-llama/llama-4-scout-17b-16e-instruct'
+      },
+      {
+        name: 'llama-3.3-70b-versatile',
+        key: 'llama-3.3-70b-versatile'
+      },
+      {
+        name: 'moonshotai/kimi-k2-instruct',
+        key: 'moonshotai/kimi-k2-instruct'
+      },
+      {
+        name: 'moonshotai/kimi-k2-instruct-0905',
+        key: 'moonshotai/kimi-k2-instruct-0905'
+      }
+      ];
       models.push(...data.data.map((m: any) => {
         return {
           name: m.id,
