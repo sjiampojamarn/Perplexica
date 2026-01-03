@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     uwsgi uwsgi-plugin-python3 \
     git build-essential libxslt-dev zlib1g-dev libffi-dev libssl-dev \
     curl sudo \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/perplexica
