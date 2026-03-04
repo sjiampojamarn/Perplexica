@@ -38,11 +38,30 @@ export const searchSearxng = async (
     });
   }
 
-  const res = await fetch(url);
-  const data = await res.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  const results: SearxngSearchResult[] = data.results;
-  const suggestions: string[] = data.suggestions;
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+    });
 
-  return { results, suggestions };
+    if (!res.ok) {
+      throw new Error(`SearXNG error: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+
+    const results: SearxngSearchResult[] = data.results;
+    const suggestions: string[] = data.suggestions;
+
+    return { results, suggestions };
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('SearXNG search timed out');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
