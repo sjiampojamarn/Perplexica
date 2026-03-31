@@ -4,7 +4,7 @@ const splitRegex = /(?<=\. |\n|! |\? |; |:\s|\d+\.\s|- |\* )/g;
 
 const enc = getEncoding('cl100k_base');
 
-const getTokenCount = (text: string): number => {
+export const getTokenCount = (text: string): number => {
   try {
     return enc.encode(text).length;
   } catch {
