@@ -117,6 +117,7 @@ export interface ResearchAction<
     additionalConfig: AdditionalConfig & {
       researchBlockId: string;
       fileIds: string[];
+      mode: SearchAgentConfig['mode'];
     },
   ) => Promise<ActionOutput>;
 }
