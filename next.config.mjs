@@ -1,3 +1,4 @@
+import path from 'node:path';
 import pkg from './package.json' with { type: 'json' };
 
 /** @type {import('next').NextConfig} */
@@ -10,7 +11,7 @@ const nextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['pdf-parse'],
+  serverExternalPackages: ['pdf-parse', 'playwright', 'officeparser', 'file-type'],
   outputFileTracingIncludes: {
     '/api/**': [
       './node_modules/@napi-rs/canvas/**',
@@ -21,6 +22,9 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_VERSION: pkg.version,
   },
+  turbopack: {
+    root: process.cwd()
+  }
 };
 
 export default nextConfig;
