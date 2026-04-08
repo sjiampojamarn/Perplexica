@@ -7,6 +7,9 @@ import SyntaxHighlighter from 'react-syntax-highlighter';
 import darkTheme from './CodeBlockDarkTheme';
 import lightTheme from './CodeBlockLightTheme';
 
+const SyntaxHighlighterComponent =
+  SyntaxHighlighter as unknown as React.ComponentType<any>;
+
 const CodeBlock = ({
   language,
   children,
@@ -50,13 +53,13 @@ const CodeBlock = ({
           />
         )}
       </button>
-      <SyntaxHighlighter
+      <SyntaxHighlighterComponent
         language={language}
         style={syntaxTheme}
         showInlineLineNumbers
       >
         {children as string}
-      </SyntaxHighlighter>
+      </SyntaxHighlighterComponent>
     </div>
   );
 };
