@@ -67,6 +67,7 @@ class ActionRegistry {
     additionalConfig: AdditionalConfig & {
       researchBlockId: string;
       fileIds: string[];
+      mode: SearchAgentConfig['mode'];
     },
   ) {
     const action = this.actions.get(name);
@@ -83,6 +84,7 @@ class ActionRegistry {
     additionalConfig: AdditionalConfig & {
       researchBlockId: string;
       fileIds: string[];
+      mode: SearchAgentConfig['mode'];
     },
   ): Promise<ActionOutput[]> {
     const results: ActionOutput[] = [];
