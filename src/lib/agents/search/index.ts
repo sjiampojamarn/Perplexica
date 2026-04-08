@@ -5,9 +5,10 @@ import Researcher from './researcher';
 import { getWriterPrompt } from '@/lib/prompts/search/writer';
 import { WidgetExecutor } from './widgets';
 import db from '@/lib/db';
-import { chats, messages } from '@/lib/db/schema';
+import { messages } from '@/lib/db/schema';
 import { and, eq, gt } from 'drizzle-orm';
 import { TextBlock } from '@/lib/types';
+import { getTokenCount } from '@/lib/utils/splitText';
 
 class SearchAgent {
   async searchAsync(session: SessionManager, input: SearchAgentInput) {
@@ -98,13 +99,17 @@ class SearchAgent {
       type: 'researchComplete',
     });
 
-    const finalContext =
-      searchResults?.searchFindings
+    let finalContext =
+      '<Query to be answered without searching; Search not made>';
+
+    if (searchResults) {
+      finalContext = searchResults?.searchFindings
         .map(
           (f, index) =>
             `<result index=${index + 1} title=${f.metadata.title}>${f.content}</result>`,
         )
-        .join('\n') || '';
+        .join('\n');
+    }
 
     const widgetContext = widgetOutputs
       .map((o) => {
@@ -119,6 +124,7 @@ class SearchAgent {
       input.config.systemInstructions,
       input.config.mode,
     );
+
     const answerStream = input.config.llm.streamText({
       messages: [
         {
