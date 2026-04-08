@@ -1,7 +1,7 @@
 import z from 'zod';
-import { ResearchAction } from '../../types';
-import { searchSearxng } from '@/lib/searxng';
-import { Chunk, SearchResultsResearchBlock } from '@/lib/types';
+import { ResearchAction } from '../../../types';
+import { ResearchBlock } from '@/lib/types';
+import { executeSearch } from './baseSearch';
 
 const actionSchema = z.object({
   type: z.literal('web_search'),
@@ -91,92 +91,22 @@ const webSearchAction: ResearchAction<typeof actionSchema> = {
 
     const researchBlock = additionalConfig.session.getBlock(
       additionalConfig.researchBlockId,
-    );
+    ) as ResearchBlock | undefined;
 
-    if (researchBlock && researchBlock.type === 'research') {
-      researchBlock.data.subSteps.push({
-        id: crypto.randomUUID(),
-        type: 'searching',
-        searching: input.queries,
-      });
+    if (!researchBlock) throw new Error('Failed to retrieve research block');
 
-      additionalConfig.session.updateBlock(additionalConfig.researchBlockId, [
-        {
-          op: 'replace',
-          path: '/data/subSteps',
-          value: researchBlock.data.subSteps,
-        },
-      ]);
-    }
-
-    const searchResultsBlockId = crypto.randomUUID();
-    let searchResultsEmitted = false;
-
-    let results: Chunk[] = [];
-
-    const search = async (q: string) => {
-      const res = await searchSearxng(q);
-
-      const resultChunks: Chunk[] = res.results.map((r) => ({
-        content: r.content || r.title,
-        metadata: {
-          title: r.title,
-          url: r.url,
-        },
-      }));
-
-      results.push(...resultChunks);
-
-      if (
-        !searchResultsEmitted &&
-        researchBlock &&
-        researchBlock.type === 'research'
-      ) {
-        searchResultsEmitted = true;
-
-        researchBlock.data.subSteps.push({
-          id: searchResultsBlockId,
-          type: 'search_results',
-          reading: resultChunks,
-        });
-
-        additionalConfig.session.updateBlock(additionalConfig.researchBlockId, [
-          {
-            op: 'replace',
-            path: '/data/subSteps',
-            value: researchBlock.data.subSteps,
-          },
-        ]);
-      } else if (
-        searchResultsEmitted &&
-        researchBlock &&
-        researchBlock.type === 'research'
-      ) {
-        const subStepIndex = researchBlock.data.subSteps.findIndex(
-          (step) => step.id === searchResultsBlockId,
-        );
-
-        const subStep = researchBlock.data.subSteps[
-          subStepIndex
-        ] as SearchResultsResearchBlock;
-
-        subStep.reading.push(...resultChunks);
-
-        additionalConfig.session.updateBlock(additionalConfig.researchBlockId, [
-          {
-            op: 'replace',
-            path: '/data/subSteps',
-            value: researchBlock.data.subSteps,
-          },
-        ]);
-      }
-    };
-
-    await Promise.all(input.queries.map(search));
+    const results = await executeSearch({
+      llm: additionalConfig.llm,
+      embedding: additionalConfig.embedding,
+      mode: additionalConfig.mode,
+      queries: input.queries,
+      researchBlock: researchBlock,
+      session: additionalConfig.session,
+    });
 
     return {
       type: 'search_results',
-      results,
+      results: results,
     };
   },
 };
