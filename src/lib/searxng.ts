@@ -1,6 +1,6 @@
 import { getSearxngURL } from './config/serverRegistry';
 
-interface SearxngSearchOptions {
+export interface SearxngSearchOptions {
   categories?: string[];
   engines?: string[];
   language?: string;
