@@ -1,10 +1,7 @@
 import z from 'zod';
 import { ResearchAction } from '../../types';
 import { Chunk, ReadingResearchBlock } from '@/lib/types';
-import TurnDown from 'turndown';
-import path from 'path';
-
-const turndownService = new TurnDown();
+import Scraper from '@/lib/scraper';
 
 const schema = z.object({
   urls: z.array(z.string()).describe('A list of URLs to scrape content from.'),
@@ -39,11 +36,7 @@ const scrapeURLAction: ResearchAction<typeof schema> = {
     await Promise.all(
       params.urls.map(async (url) => {
         try {
-          const res = await fetch(url);
-          const text = await res.text();
-
-          const title =
-            text.match(/<title>(.*?)<\/title>/i)?.[1] || `Content from ${url}`;
+          const scraped = await Scraper.scrape(url);
 
           if (
             !readingEmitted &&
@@ -59,7 +52,7 @@ const scrapeURLAction: ResearchAction<typeof schema> = {
                   content: '',
                   metadata: {
                     url,
-                    title: title,
+                    title: scraped.title,
                   },
                 },
               ],
@@ -92,7 +85,7 @@ const scrapeURLAction: ResearchAction<typeof schema> = {
               content: '',
               metadata: {
                 url,
-                title: title,
+                title: scraped.title,
               },
             });
 
@@ -108,13 +101,11 @@ const scrapeURLAction: ResearchAction<typeof schema> = {
             );
           }
 
-          const markdown = turndownService.turndown(text);
-
           results.push({
-            content: markdown,
+            content: scraped.content,
             metadata: {
               url,
-              title: title,
+              title: scraped.title,
             },
           });
         } catch (error) {
@@ -122,7 +113,7 @@ const scrapeURLAction: ResearchAction<typeof schema> = {
             content: `Failed to fetch content from ${url}: ${error}`,
             metadata: {
               url,
-              title: `Error fetching ${url}`,
+              title: `Error scraping ${url}`,
             },
           });
         }
