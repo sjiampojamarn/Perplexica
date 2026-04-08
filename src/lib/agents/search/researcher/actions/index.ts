@@ -1,11 +1,11 @@
-import academicSearchAction from './academicSearch';
+import academicSearchAction from './search/academicSearch';
 import doneAction from './done';
 import planAction from './plan';
 import ActionRegistry from './registry';
 import scrapeURLAction from './scrapeURL';
-import socialSearchAction from './socialSearch';
+import socialSearchAction from './search/socialSearch';
 import uploadsSearchAction from './uploadsSearch';
-import webSearchAction from './webSearch';
+import webSearchAction from './search/webSearch';
 
 ActionRegistry.register(webSearchAction);
 ActionRegistry.register(doneAction);
