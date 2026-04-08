@@ -146,7 +146,7 @@ class UploadManager {
             case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
                 const docBuffer = fs.readFileSync(filePath);
 
-                const docText = await officeParser.parseOfficeAsync(docBuffer)
+                const docText = (await officeParser.parseOffice(docBuffer)).toText()
 
                 const docSplittedText = splitText(docText, 512, 128)
                 const docEmbeddings = await this.embeddingModel.embedText(docSplittedText)
