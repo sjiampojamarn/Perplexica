@@ -34,6 +34,9 @@ COPY drizzle ./drizzle
 
 RUN mkdir /home/vane/uploads
 
+RUN yarn add playwright
+RUN yarn playwright install --with-deps --only-shell chromium
+
 RUN useradd --shell /bin/bash --system \
     --home-dir "/usr/local/searxng" \
     --comment 'Privacy-respecting metasearch engine' \
