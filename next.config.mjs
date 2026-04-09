@@ -11,7 +11,12 @@ const nextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['pdf-parse', 'playwright', 'officeparser', 'file-type'],
+  serverExternalPackages: [
+    'pdf-parse',
+    'playwright',
+    'officeparser',
+    'file-type',
+  ],
   outputFileTracingIncludes: {
     '/api/**': [
       './node_modules/@napi-rs/canvas/**',
@@ -23,8 +28,8 @@ const nextConfig = {
     NEXT_PUBLIC_VERSION: pkg.version,
   },
   turbopack: {
-    root: process.cwd()
-  }
+    root: process.cwd(),
+  },
 };
 
 export default nextConfig;

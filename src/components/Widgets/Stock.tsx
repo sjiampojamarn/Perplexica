@@ -257,21 +257,21 @@ const Stock = (props: StockWidgetProps) => {
   const isPostMarket = props.marketState === 'POST';
 
   const displayPrice = isPostMarket
-    ? props.postMarketPrice ?? props.regularMarketPrice
+    ? (props.postMarketPrice ?? props.regularMarketPrice)
     : isPreMarket
-      ? props.preMarketPrice ?? props.regularMarketPrice
+      ? (props.preMarketPrice ?? props.regularMarketPrice)
       : props.regularMarketPrice;
 
   const displayChange = isPostMarket
-    ? props.postMarketChange ?? props.regularMarketChange
+    ? (props.postMarketChange ?? props.regularMarketChange)
     : isPreMarket
-      ? props.preMarketChange ?? props.regularMarketChange
+      ? (props.preMarketChange ?? props.regularMarketChange)
       : props.regularMarketChange;
 
   const displayChangePercent = isPostMarket
-    ? props.postMarketChangePercent ?? props.regularMarketChangePercent
+    ? (props.postMarketChangePercent ?? props.regularMarketChangePercent)
     : isPreMarket
-      ? props.preMarketChangePercent ?? props.regularMarketChangePercent
+      ? (props.preMarketChangePercent ?? props.regularMarketChangePercent)
       : props.regularMarketChangePercent;
 
   const changeColor = isPositive
