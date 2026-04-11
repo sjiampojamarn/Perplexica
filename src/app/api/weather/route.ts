@@ -62,57 +62,79 @@ export const POST = async (req: Request) => {
         break;
 
       case 1:
+        weather.icon = `cloudy-1-${dayOrNight}`;
         weather.condition = 'Mainly Clear';
+        break;
       case 2:
+        weather.icon = `cloudy-1-${dayOrNight}`;
         weather.condition = 'Partly Cloudy';
+        break;
       case 3:
         weather.icon = `cloudy-1-${dayOrNight}`;
         weather.condition = 'Cloudy';
         break;
 
       case 45:
+        weather.icon = `fog-${dayOrNight}`;
         weather.condition = 'Fog';
+        break;
       case 48:
         weather.icon = `fog-${dayOrNight}`;
         weather.condition = 'Fog';
         break;
 
       case 51:
+        weather.icon = `rainy-1-${dayOrNight}`;
         weather.condition = 'Light Drizzle';
+        break;
       case 53:
+        weather.icon = `rainy-1-${dayOrNight}`;
         weather.condition = 'Moderate Drizzle';
+        break;
       case 55:
         weather.icon = `rainy-1-${dayOrNight}`;
         weather.condition = 'Dense Drizzle';
         break;
 
       case 56:
+        weather.icon = `frost-${dayOrNight}`;
         weather.condition = 'Light Freezing Drizzle';
+        break;
       case 57:
         weather.icon = `frost-${dayOrNight}`;
         weather.condition = 'Dense Freezing Drizzle';
         break;
 
       case 61:
+        weather.icon = `rainy-2-${dayOrNight}`;
         weather.condition = 'Slight Rain';
+        break;
       case 63:
+        weather.icon = `rainy-2-${dayOrNight}`;
         weather.condition = 'Moderate Rain';
+        break;
       case 65:
         weather.condition = 'Heavy Rain';
         weather.icon = `rainy-2-${dayOrNight}`;
         break;
 
       case 66:
+        weather.icon = 'rain-and-sleet-mix';
         weather.condition = 'Light Freezing Rain';
+        break;
       case 67:
         weather.condition = 'Heavy Freezing Rain';
         weather.icon = 'rain-and-sleet-mix';
         break;
 
       case 71:
+        weather.icon = `snowy-2-${dayOrNight}`;
         weather.condition = 'Slight Snow Fall';
+        break;
       case 73:
+        weather.icon = `snowy-2-${dayOrNight}`;
         weather.condition = 'Moderate Snow Fall';
+        break;
       case 75:
         weather.condition = 'Heavy Snow Fall';
         weather.icon = `snowy-2-${dayOrNight}`;
@@ -124,18 +146,26 @@ export const POST = async (req: Request) => {
         break;
 
       case 80:
+        weather.icon = `rainy-3-${dayOrNight}`;
         weather.condition = 'Slight Rain Showers';
+        break;
       case 81:
+        weather.icon = `rainy-3-${dayOrNight}`;
         weather.condition = 'Moderate Rain Showers';
+        break;
       case 82:
         weather.condition = 'Heavy Rain Showers';
         weather.icon = `rainy-3-${dayOrNight}`;
         break;
 
       case 85:
+        weather.icon = `snowy-3-${dayOrNight}`;
         weather.condition = 'Slight Snow Showers';
+        break;
       case 86:
+        weather.icon = `snowy-3-${dayOrNight}`;
         weather.condition = 'Moderate Snow Showers';
+        break;
       case 87:
         weather.condition = 'Heavy Snow Showers';
         weather.icon = `snowy-3-${dayOrNight}`;
@@ -147,7 +177,9 @@ export const POST = async (req: Request) => {
         break;
 
       case 96:
+        weather.icon = 'severe-thunderstorm';
         weather.condition = 'Thunderstorm with Slight Hail';
+        break;
       case 99:
         weather.condition = 'Thunderstorm with Heavy Hail';
         weather.icon = 'severe-thunderstorm';
