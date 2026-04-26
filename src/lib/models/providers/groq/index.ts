@@ -1,10 +1,10 @@
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { Model, ModelList, ProviderMetadata } from '../types';
-import BaseModelProvider from './baseProvider';
-import { ChatGroq } from '@langchain/groq';
-import { Embeddings } from '@langchain/core/embeddings';
 import { UIConfigField } from '@/lib/config/types';
 import { getConfiguredModelProviderById } from '@/lib/config/serverRegistry';
+import { Model, ModelList, ProviderMetadata } from '../../types';
+import BaseEmbedding from '../../base/embedding';
+import BaseModelProvider from '../../base/provider';
+import BaseLLM from '../../base/llm';
+import GroqLLM from './groqLLM';
 
 interface GroqConfig {
   apiKey: string;
@@ -29,57 +29,48 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
   }
 
   async getDefaultModels(): Promise<ModelList> {
-    try {
-      const res = await fetch('https://api.groq.com/openai/v1/models', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.config.apiKey}`,
-        },
-      });
+    const res = await fetch(`https://api.groq.com/openai/v1/models`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      // SJ: default models for free tier friendly models
-      let models: Model[] = [
-        {
-          name: 'meta-llama/llama-4-scout-17b-16e-instruct',
-          key: 'meta-llama/llama-4-scout-17b-16e-instruct'
-        },
-        {
-          name: 'llama-3.3-70b-versatile',
-          key: 'llama-3.3-70b-versatile'
-        },
-        {
-          name: 'moonshotai/kimi-k2-instruct',
-          key: 'moonshotai/kimi-k2-instruct'
-        },
-        {
-          name: 'moonshotai/kimi-k2-instruct-0905',
-          key: 'moonshotai/kimi-k2-instruct-0905'
-        }
-      ];
+    const defaultChatModels: Model[] = [
+      {
+        key: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        name: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      },
+      {
+        key: 'llama-3.3-70b-versatile',
+        name: 'llama-3.3-70b-versatile',
+      },
+      {
+        key: 'moonshotai/kimi-k2-instruct',
+        name: 'moonshotai/kimi-k2-instruct',
+      },
+      {
+        key: 'moonshotai/kimi-k2-instruct-0905',
+        name: 'moonshotai/kimi-k2-instruct-0905',
+      },
+    ];
 
-      models.push(...data.data.map((m: any) => {
-        return {
-          name: m.id,
+    data.data.forEach((m: any) => {
+      if (!defaultChatModels.some((model) => model.key === m.id)) {
+        defaultChatModels.push({
           key: m.id,
-        };
-      }));
-
-      return {
-        embedding: [],
-        chat: models,
-      };
-    } catch (err) {
-      if (err instanceof TypeError) {
-        throw new Error(
-          'Error connecting to Groq API. Please ensure your API key is correct and the Groq service is available.',
-        );
+          name: m.id,
+        });
       }
+    });
 
-      throw err;
-    }
+    return {
+      embedding: [],
+      chat: defaultChatModels,
+    };
   }
 
   async getModelList(): Promise<ModelList> {
@@ -87,12 +78,15 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
     const configProvider = getConfiguredModelProviderById(this.id)!;
 
     return {
-      embedding: [],
+      embedding: [
+        ...defaultModels.embedding,
+        ...configProvider.embeddingModels,
+      ],
       chat: [...defaultModels.chat, ...configProvider.chatModels],
     };
   }
 
-  async loadChatModel(key: string): Promise<BaseChatModel> {
+  async loadChatModel(key: string): Promise<BaseLLM<any>> {
     const modelList = await this.getModelList();
 
     const exists = modelList.chat.find((m) => m.key === key);
@@ -101,15 +95,15 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
       throw new Error('Error Loading Groq Chat Model. Invalid Model Selected');
     }
 
-    return new ChatGroq({
+    return new GroqLLM({
       apiKey: this.config.apiKey,
-      temperature: 0.7,
       model: key,
+      baseURL: 'https://api.groq.com/openai/v1',
     });
   }
 
-  async loadEmbeddingModel(key: string): Promise<Embeddings> {
-    throw new Error('Groq provider does not support embedding models.');
+  async loadEmbeddingModel(key: string): Promise<BaseEmbedding<any>> {
+    throw new Error('Groq Provider does not support embedding models.');
   }
 
   static parseAndValidate(raw: any): GroqConfig {
