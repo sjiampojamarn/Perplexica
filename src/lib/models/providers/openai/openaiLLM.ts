@@ -195,38 +195,86 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
   }
 
   async generateObject<T>(input: GenerateObjectInput): Promise<T> {
-    const response = await this.openAIClient.chat.completions.parse({
-      messages: this.convertToOpenAIMessages(input.messages),
-      model: this.config.model,
-      temperature:
-        input.options?.temperature ?? this.config.options?.temperature ?? 1.0,
-      top_p: input.options?.topP ?? this.config.options?.topP,
-      max_completion_tokens:
-        input.options?.maxTokens ?? this.config.options?.maxTokens,
-      stop: input.options?.stopSequences ?? this.config.options?.stopSequences,
-      frequency_penalty:
-        input.options?.frequencyPenalty ??
-        this.config.options?.frequencyPenalty,
-      presence_penalty:
-        input.options?.presencePenalty ?? this.config.options?.presencePenalty,
-      response_format: zodResponseFormat(input.schema, 'object'),
-    });
+    try {
+      const response = await this.openAIClient.chat.completions.parse({
+        messages: this.convertToOpenAIMessages(input.messages),
+        model: this.config.model,
+        temperature:
+          input.options?.temperature ?? this.config.options?.temperature ?? 1.0,
+        top_p: input.options?.topP ?? this.config.options?.topP,
+        max_completion_tokens:
+          input.options?.maxTokens ?? this.config.options?.maxTokens,
+        stop: input.options?.stopSequences ?? this.config.options?.stopSequences,
+        frequency_penalty:
+          input.options?.frequencyPenalty ??
+          this.config.options?.frequencyPenalty,
+        presence_penalty:
+          input.options?.presencePenalty ?? this.config.options?.presencePenalty,
+        response_format: zodResponseFormat(input.schema, 'object'),
+      });
 
-    if (response.choices && response.choices.length > 0) {
+      if (response.choices && response.choices.length > 0) {
+        try {
+          return input.schema.parse(
+            JSON.parse(
+              repairJson(response.choices[0].message.content!, {
+                extractJson: true,
+              }) as string,
+            ),
+          ) as T;
+        } catch (err) {
+          throw new Error(`Error parsing response from OpenAI: ${err}`);
+        }
+      }
+
+      throw new Error('No response from OpenAI');
+    } catch (err: any) {
+      const responseFormatUnsupported =
+        err?.param === 'response_format' ||
+        String(err?.message || '').includes('response format `json_schema`');
+
+      if (!responseFormatUnsupported) {
+        throw err;
+      }
+
+      console.warn(
+        `Structured output unavailable for model "${this.config.model}", falling back to plain JSON completion.`,
+      );
+
+      const fallbackResponse = await this.openAIClient.chat.completions.create({
+        model: this.config.model,
+        messages: this.convertToOpenAIMessages(input.messages),
+        temperature:
+          input.options?.temperature ?? this.config.options?.temperature ?? 1.0,
+        top_p: input.options?.topP ?? this.config.options?.topP,
+        max_completion_tokens:
+          input.options?.maxTokens ?? this.config.options?.maxTokens,
+        stop: input.options?.stopSequences ?? this.config.options?.stopSequences,
+        frequency_penalty:
+          input.options?.frequencyPenalty ??
+          this.config.options?.frequencyPenalty,
+        presence_penalty:
+          input.options?.presencePenalty ?? this.config.options?.presencePenalty,
+      });
+
+      if (!fallbackResponse.choices || fallbackResponse.choices.length === 0) {
+        throw new Error('No response from OpenAI');
+      }
+
       try {
         return input.schema.parse(
           JSON.parse(
-            repairJson(response.choices[0].message.content!, {
+            repairJson(fallbackResponse.choices[0].message.content || '', {
               extractJson: true,
             }) as string,
           ),
         ) as T;
-      } catch (err) {
-        throw new Error(`Error parsing response from OpenAI: ${err}`);
+      } catch (parseErr) {
+        throw new Error(
+          `Error parsing fallback response from OpenAI: ${parseErr}`,
+        );
       }
     }
-
-    throw new Error('No response from OpenAI');
   }
 
   async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<T> {
