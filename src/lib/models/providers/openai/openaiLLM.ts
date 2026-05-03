@@ -25,6 +25,8 @@ type OpenAIConfig = {
   model: string;
   baseURL?: string;
   options?: GenerateOptions;
+  /** When false, requests sequential tool calls (helps some providers e.g. Groq). */
+  parallelToolCalls?: boolean;
 };
 
 class OpenAILLM extends BaseLLM<OpenAIConfig> {
@@ -87,6 +89,9 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
       model: this.config.model,
       tools: openaiTools.length > 0 ? openaiTools : undefined,
       messages: this.convertToOpenAIMessages(input.messages),
+      ...(this.config.parallelToolCalls !== undefined && {
+        parallel_tool_calls: this.config.parallelToolCalls,
+      }),
       temperature:
         input.options?.temperature ?? this.config.options?.temperature ?? 1.0,
       top_p: input.options?.topP ?? this.config.options?.topP,
@@ -144,6 +149,9 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
       model: this.config.model,
       messages: this.convertToOpenAIMessages(input.messages),
       tools: openaiTools.length > 0 ? openaiTools : undefined,
+      ...(this.config.parallelToolCalls !== undefined && {
+        parallel_tool_calls: this.config.parallelToolCalls,
+      }),
       temperature:
         input.options?.temperature ?? this.config.options?.temperature ?? 1.0,
       top_p: input.options?.topP ?? this.config.options?.topP,
@@ -158,8 +166,11 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
       stream: true,
     });
 
-    let recievedToolCalls: { name: string; id: string; arguments: string }[] =
-      [];
+    let recievedToolCalls: {
+      name: string;
+      id: string;
+      arguments: string;
+    }[] = [];
 
     for await (const chunk of stream) {
       if (chunk.choices && chunk.choices.length > 0) {
@@ -168,16 +179,23 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
           contentChunk: chunk.choices[0].delta.content || '',
           toolCallChunk:
             toolCalls?.map((tc) => {
-              if (!recievedToolCalls[tc.index]) {
+              const idx = tc.index;
+              if (!recievedToolCalls[idx]) {
                 const call = {
-                  name: tc.function?.name!,
-                  id: tc.id!,
+                  name: tc.function?.name ?? '',
+                  id: tc.id ?? '',
                   arguments: tc.function?.arguments || '',
                 };
-                recievedToolCalls.push(call);
+                recievedToolCalls[idx] = call;
                 return { ...call, arguments: parse(call.arguments || '{}') };
               } else {
-                const existingCall = recievedToolCalls[tc.index];
+                const existingCall = recievedToolCalls[idx];
+                if (tc.function?.name) {
+                  existingCall.name = tc.function.name;
+                }
+                if (tc.id) {
+                  existingCall.id = tc.id;
+                }
                 existingCall.arguments += tc.function?.arguments || '';
                 return {
                   ...existingCall,
