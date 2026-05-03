@@ -24,6 +24,19 @@ function isLlmToolGenerationFailedError(err: unknown): boolean {
   );
 }
 
+function logToolGenerationFailureDetails(err: unknown) {
+  const e = err as { error?: { failed_generation?: unknown } };
+  const fg = e?.error?.failed_generation;
+  if (fg === undefined) {
+    return;
+  }
+  const preview =
+    typeof fg === 'string'
+      ? fg.slice(0, 1200)
+      : JSON.stringify(fg).slice(0, 1200);
+  console.warn('[researcher] failed_generation (preview):', preview);
+}
+
 class Researcher {
   async research(
     session: SessionManager,
@@ -88,93 +101,101 @@ class Researcher {
         block && block.type === 'research' ? block.data.subSteps.length : 0;
 
       let finalToolCalls: ToolCall[] = [];
-      const maxStreamAttempts = 3;
+      const maxAttempts = 3;
 
-      for (let attempt = 0; attempt < maxStreamAttempts; attempt++) {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         let reasoningEmitted = false;
         let reasoningId = crypto.randomUUID();
         finalToolCalls = [];
 
-        try {
-          const actionStream = input.config.llm.streamText({
-            messages: [
+        const toolMessages: Message[] = [
+          {
+            role: 'system',
+            content: researcherPrompt,
+          },
+          ...agentMessageHistory,
+        ];
+
+        const toolGenInput = {
+          messages: toolMessages,
+          tools: availableTools,
+        };
+
+        const applyReasoningPreamble = (tc: ToolCall) => {
+          if (
+            tc.name !== '__reasoning_preamble' ||
+            !tc.arguments['plan'] ||
+            !block ||
+            block.type !== 'research'
+          ) {
+            return;
+          }
+          if (!reasoningEmitted) {
+            reasoningEmitted = true;
+            block.data.subSteps.push({
+              id: reasoningId,
+              type: 'reasoning',
+              reasoning: tc.arguments['plan'],
+            });
+            session.updateBlock(researchBlockId, [
               {
-                role: 'system',
-                content: researcherPrompt,
+                op: 'replace',
+                path: '/data/subSteps',
+                value: block.data.subSteps,
               },
-              ...agentMessageHistory,
-            ],
-            tools: availableTools,
-          });
+            ]);
+          } else {
+            const subStepIndex = block.data.subSteps.findIndex(
+              (step: any) => step.id === reasoningId,
+            );
+            if (subStepIndex !== -1) {
+              const subStep = block.data.subSteps[
+                subStepIndex
+              ] as ReasoningResearchBlock;
+              subStep.reasoning = tc.arguments['plan'];
+              session.updateBlock(researchBlockId, [
+                {
+                  op: 'replace',
+                  path: '/data/subSteps',
+                  value: block.data.subSteps,
+                },
+              ]);
+            }
+          }
+        };
 
-          for await (const partialRes of actionStream) {
-            if (partialRes.toolCallChunk.length > 0) {
-              partialRes.toolCallChunk.forEach((tc) => {
-                if (
-                  tc.name === '__reasoning_preamble' &&
-                  tc.arguments['plan'] &&
-                  !reasoningEmitted &&
-                  block &&
-                  block.type === 'research'
-                ) {
-                  reasoningEmitted = true;
+        try {
+          if (attempt === 0) {
+            const actionStream = input.config.llm.streamText(toolGenInput);
 
-                  block.data.subSteps.push({
-                    id: reasoningId,
-                    type: 'reasoning',
-                    reasoning: tc.arguments['plan'],
-                  });
-
-                  session.updateBlock(researchBlockId, [
-                    {
-                      op: 'replace',
-                      path: '/data/subSteps',
-                      value: block.data.subSteps,
-                    },
-                  ]);
-                } else if (
-                  tc.name === '__reasoning_preamble' &&
-                  tc.arguments['plan'] &&
-                  reasoningEmitted &&
-                  block &&
-                  block.type === 'research'
-                ) {
-                  const subStepIndex = block.data.subSteps.findIndex(
-                    (step: any) => step.id === reasoningId,
+            for await (const partialRes of actionStream) {
+              if (partialRes.toolCallChunk.length > 0) {
+                partialRes.toolCallChunk.forEach((tc) => {
+                  applyReasoningPreamble(tc);
+                  const existingIndex = finalToolCalls.findIndex(
+                    (ftc) => ftc.id === tc.id,
                   );
-
-                  if (subStepIndex !== -1) {
-                    const subStep = block.data.subSteps[
-                      subStepIndex
-                    ] as ReasoningResearchBlock;
-                    subStep.reasoning = tc.arguments['plan'];
-                    session.updateBlock(researchBlockId, [
-                      {
-                        op: 'replace',
-                        path: '/data/subSteps',
-                        value: block.data.subSteps,
-                      },
-                    ]);
+                  if (existingIndex !== -1) {
+                    finalToolCalls[existingIndex].arguments = tc.arguments;
+                  } else {
+                    finalToolCalls.push(tc);
                   }
-                }
-
-                const existingIndex = finalToolCalls.findIndex(
-                  (ftc) => ftc.id === tc.id,
-                );
-
-                if (existingIndex !== -1) {
-                  finalToolCalls[existingIndex].arguments = tc.arguments;
-                } else {
-                  finalToolCalls.push(tc);
-                }
-              });
+                });
+              }
+            }
+          } else {
+            const res = await input.config.llm.generateText(toolGenInput);
+            finalToolCalls = res.toolCalls;
+            for (const tc of finalToolCalls) {
+              applyReasoningPreamble(tc);
             }
           }
           break;
         } catch (err) {
+          logToolGenerationFailureDetails(err);
           if (
             !isLlmToolGenerationFailedError(err) ||
-            attempt === maxStreamAttempts - 1
+            attempt === maxAttempts - 1
           ) {
             throw err;
           }
@@ -194,6 +215,7 @@ class Researcher {
             {
               attempt: attempt + 1,
               requestID: (err as { requestID?: string }).requestID,
+              mode: attempt === 0 ? 'stream' : 'non-stream',
             },
           );
         }
