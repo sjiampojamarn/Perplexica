@@ -24,17 +24,25 @@ class APISearchAgent {
       return [];
     });
 
-    let searchPromise: Promise<ResearcherOutput> | null = null;
+    let researchDegraded = false;
 
-    if (!classification.classification.skipSearch) {
-      const researcher = new Researcher();
-      searchPromise = researcher.research(SessionManager.createSession(), {
-        chatHistory: input.chatHistory,
-        followUp: input.followUp,
-        classification: classification,
-        config: input.config,
-      });
-    }
+    const searchPromise = classification.classification.skipSearch
+      ? Promise.resolve(null)
+      : new Researcher()
+          .research(SessionManager.createSession(), {
+            chatHistory: input.chatHistory,
+            followUp: input.followUp,
+            classification: classification,
+            config: input.config,
+          })
+          .catch((err) => {
+            researchDegraded = true;
+            console.error(
+              '[search] Research failed; continuing without live sources',
+              err,
+            );
+            return { findings: [], searchFindings: [] };
+          });
 
     const [widgetOutputs, searchResults] = await Promise.all([
       widgetPromise,
@@ -52,13 +60,24 @@ class APISearchAgent {
       type: 'researchComplete',
     });
 
-    const finalContext =
-      searchResults?.searchFindings
-        .map(
-          (f, index) =>
-            `<result index=${index + 1} title=${f.metadata.title}>${f.content}</result>`,
-        )
-        .join('\n') || '';
+    let finalContext = '';
+
+    if (searchResults) {
+      if (searchResults.searchFindings.length > 0) {
+        finalContext = searchResults.searchFindings
+          .map(
+            (f, index) =>
+              `<result index=${index + 1} title=${f.metadata.title}>${f.content}</result>`,
+          )
+          .join('\n');
+      } else if (researchDegraded) {
+        finalContext =
+          '<status note="Live search did not complete (provider/tool error). Do not invent URLs or recent facts; use general knowledge and prior chat only. Tell the user live sources were unavailable if the question needs current information."/>';
+      } else {
+        finalContext =
+          '<no_indexed_results note="No sources retrieved for this query"/>';
+      }
+    }
 
     const widgetContext = widgetOutputs
       .map((o) => {
@@ -66,7 +85,11 @@ class APISearchAgent {
       })
       .join('\n-------------\n');
 
-    const finalContextWithWidgets = `<search_results note="These are the search results and assistant can cite these">\n${finalContext}\n</search_results>\n<widgets_result noteForAssistant="Its output is already showed to the user, assistant can use this information to answer the query but do not CITE this as a souce">\n${widgetContext}\n</widgets_result>`;
+    const writerContextPrefix = researchDegraded
+      ? `<system_note for="assistant">Tell the user briefly that live search did not complete if the question needs fresh web information.</system_note>\n`
+      : '';
+
+    const finalContextWithWidgets = `${writerContextPrefix}<search_results note="These are the search results and assistant can cite these">\n${finalContext}\n</search_results>\n<widgets_result noteForAssistant="Its output is already showed to the user, assistant can use this information to answer the query but do not CITE this as a souce">\n${widgetContext}\n</widgets_result>`;
 
     const writerPrompt = getWriterPrompt(
       finalContextWithWidgets,
@@ -87,6 +110,13 @@ class APISearchAgent {
         },
       ],
     });
+
+    if (researchDegraded) {
+      session.emit('data', {
+        type: 'response',
+        data: '*Live web search did not complete this time, so this answer may lack up-to-date sources. You can try asking again.*\n\n',
+      });
+    }
 
     for await (const chunk of answerStream) {
       session.emit('data', {
