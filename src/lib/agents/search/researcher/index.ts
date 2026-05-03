@@ -6,6 +6,24 @@ import { Message, ReasoningResearchBlock } from '@/lib/types';
 import formatChatHistoryAsString from '@/lib/utils/formatHistory';
 import { ToolCall } from '@/lib/models/types';
 
+/** Groq (and similar) may abort the stream with this when tool JSON is invalid. */
+function isLlmToolGenerationFailedError(err: unknown): boolean {
+  const e = err as {
+    error?: { code?: string };
+    code?: string;
+    message?: string;
+  };
+  if (e?.error?.code === 'tool_use_failed' || e?.code === 'tool_use_failed') {
+    return true;
+  }
+  const msg = e?.message ?? (err instanceof Error ? err.message : '');
+  return (
+    typeof msg === 'string' &&
+    (msg.includes('tool_use_failed') ||
+      msg.includes('Failed to call a function'))
+  );
+}
+
 class Researcher {
   async research(
     session: SessionManager,
@@ -65,85 +83,119 @@ class Researcher {
         input.config.fileIds,
       );
 
-      const actionStream = input.config.llm.streamText({
-        messages: [
-          {
-            role: 'system',
-            content: researcherPrompt,
-          },
-          ...agentMessageHistory,
-        ],
-        tools: availableTools,
-      });
-
       const block = session.getBlock(researchBlockId);
-
-      let reasoningEmitted = false;
-      let reasoningId = crypto.randomUUID();
+      const subStepsBaseline =
+        block && block.type === 'research' ? block.data.subSteps.length : 0;
 
       let finalToolCalls: ToolCall[] = [];
+      const maxStreamAttempts = 3;
 
-      for await (const partialRes of actionStream) {
-        if (partialRes.toolCallChunk.length > 0) {
-          partialRes.toolCallChunk.forEach((tc) => {
-            if (
-              tc.name === '__reasoning_preamble' &&
-              tc.arguments['plan'] &&
-              !reasoningEmitted &&
-              block &&
-              block.type === 'research'
-            ) {
-              reasoningEmitted = true;
+      for (let attempt = 0; attempt < maxStreamAttempts; attempt++) {
+        let reasoningEmitted = false;
+        let reasoningId = crypto.randomUUID();
+        finalToolCalls = [];
 
-              block.data.subSteps.push({
-                id: reasoningId,
-                type: 'reasoning',
-                reasoning: tc.arguments['plan'],
-              });
-
-              session.updateBlock(researchBlockId, [
-                {
-                  op: 'replace',
-                  path: '/data/subSteps',
-                  value: block.data.subSteps,
-                },
-              ]);
-            } else if (
-              tc.name === '__reasoning_preamble' &&
-              tc.arguments['plan'] &&
-              reasoningEmitted &&
-              block &&
-              block.type === 'research'
-            ) {
-              const subStepIndex = block.data.subSteps.findIndex(
-                (step: any) => step.id === reasoningId,
-              );
-
-              if (subStepIndex !== -1) {
-                const subStep = block.data.subSteps[
-                  subStepIndex
-                ] as ReasoningResearchBlock;
-                subStep.reasoning = tc.arguments['plan'];
-                session.updateBlock(researchBlockId, [
-                  {
-                    op: 'replace',
-                    path: '/data/subSteps',
-                    value: block.data.subSteps,
-                  },
-                ]);
-              }
-            }
-
-            const existingIndex = finalToolCalls.findIndex(
-              (ftc) => ftc.id === tc.id,
-            );
-
-            if (existingIndex !== -1) {
-              finalToolCalls[existingIndex].arguments = tc.arguments;
-            } else {
-              finalToolCalls.push(tc);
-            }
+        try {
+          const actionStream = input.config.llm.streamText({
+            messages: [
+              {
+                role: 'system',
+                content: researcherPrompt,
+              },
+              ...agentMessageHistory,
+            ],
+            tools: availableTools,
           });
+
+          for await (const partialRes of actionStream) {
+            if (partialRes.toolCallChunk.length > 0) {
+              partialRes.toolCallChunk.forEach((tc) => {
+                if (
+                  tc.name === '__reasoning_preamble' &&
+                  tc.arguments['plan'] &&
+                  !reasoningEmitted &&
+                  block &&
+                  block.type === 'research'
+                ) {
+                  reasoningEmitted = true;
+
+                  block.data.subSteps.push({
+                    id: reasoningId,
+                    type: 'reasoning',
+                    reasoning: tc.arguments['plan'],
+                  });
+
+                  session.updateBlock(researchBlockId, [
+                    {
+                      op: 'replace',
+                      path: '/data/subSteps',
+                      value: block.data.subSteps,
+                    },
+                  ]);
+                } else if (
+                  tc.name === '__reasoning_preamble' &&
+                  tc.arguments['plan'] &&
+                  reasoningEmitted &&
+                  block &&
+                  block.type === 'research'
+                ) {
+                  const subStepIndex = block.data.subSteps.findIndex(
+                    (step: any) => step.id === reasoningId,
+                  );
+
+                  if (subStepIndex !== -1) {
+                    const subStep = block.data.subSteps[
+                      subStepIndex
+                    ] as ReasoningResearchBlock;
+                    subStep.reasoning = tc.arguments['plan'];
+                    session.updateBlock(researchBlockId, [
+                      {
+                        op: 'replace',
+                        path: '/data/subSteps',
+                        value: block.data.subSteps,
+                      },
+                    ]);
+                  }
+                }
+
+                const existingIndex = finalToolCalls.findIndex(
+                  (ftc) => ftc.id === tc.id,
+                );
+
+                if (existingIndex !== -1) {
+                  finalToolCalls[existingIndex].arguments = tc.arguments;
+                } else {
+                  finalToolCalls.push(tc);
+                }
+              });
+            }
+          }
+          break;
+        } catch (err) {
+          if (
+            !isLlmToolGenerationFailedError(err) ||
+            attempt === maxStreamAttempts - 1
+          ) {
+            throw err;
+          }
+          const b = session.getBlock(researchBlockId);
+          if (b && b.type === 'research') {
+            b.data.subSteps = b.data.subSteps.slice(0, subStepsBaseline);
+            session.updateBlock(researchBlockId, [
+              {
+                op: 'replace',
+                path: '/data/subSteps',
+                value: b.data.subSteps,
+              },
+            ]);
+          }
+          console.warn(
+            '[researcher] LLM tool generation failed, retrying research step',
+            {
+              attempt: attempt + 1,
+              requestID: (err as { requestID?: string }).requestID,
+            },
+          );
         }
       }
 
