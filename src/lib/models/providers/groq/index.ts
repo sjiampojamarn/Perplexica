@@ -41,20 +41,16 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
 
     const defaultChatModels: Model[] = [
       {
-        key: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        name: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        key: 'openai/gpt-oss-120b',
+        name: 'openai/gpt-oss-120b',
       },
       {
-        key: 'llama-3.3-70b-versatile',
-        name: 'llama-3.3-70b-versatile',
+        key: 'qwen/qwen3.6-27b',
+        name: 'qwen/qwen3.6-27b',
       },
       {
-        key: 'moonshotai/kimi-k2-instruct',
-        name: 'moonshotai/kimi-k2-instruct',
-      },
-      {
-        key: 'moonshotai/kimi-k2-instruct-0905',
-        name: 'moonshotai/kimi-k2-instruct-0905',
+        key: 'llama-3.1-8b-instant',
+        name: 'llama-3.1-8b-instant',
       },
     ];
 
