@@ -79,8 +79,9 @@ class SearchAgent {
     });
 
     let researchDegraded = false;
+    const skipSearch = classification.classification.skipSearch;
 
-    const searchPromise = classification.classification.skipSearch
+    const searchPromise = skipSearch
       ? Promise.resolve(null)
       : new Researcher()
           .research(session, {
@@ -116,7 +117,7 @@ class SearchAgent {
     }
 
     let finalContext =
-      '<Query to be answered without searching; Search not made>';
+      '<general_knowledge instruction="Answer the query using your general knowledge. Do NOT use citation markers [number] since no search was performed. This is not a no-results situation — you have relevant information from your training data. Do not say you could not find information."/>';
 
     if (searchResults) {
       if (searchResults.searchFindings.length > 0) {
@@ -129,7 +130,7 @@ class SearchAgent {
       } else if (researchDegraded) {
         finalContext =
           '<status note="Live search did not complete (provider/tool error). Do not invent URLs or recent facts; use general knowledge and prior chat only. Tell the user live sources were unavailable if the question needs current information."/>';
-      } else {
+      } else if (!skipSearch) {
         finalContext =
           '<no_indexed_results note="No sources retrieved for this query"/>';
       }
@@ -145,7 +146,10 @@ class SearchAgent {
       ? `<system_note for="assistant">The user already saw a short in-app notice that live search failed this turn.</system_note>\n`
       : '';
 
-    const finalContextWithWidgets = `${writerContextPrefix}<search_results note="These are the search results and assistant can cite these">\n${finalContext}\n</search_results>\n<widgets_result noteForAssistant="Its output is already showed to the user, assistant can use this information to answer the query but do not CITE this as a souce">\n${widgetContext}\n</widgets_result>`;
+    const searchNote = skipSearch
+      ? 'No search was performed — answer from general knowledge without citations'
+      : 'These are the search results and assistant can cite these';
+    const finalContextWithWidgets = `${writerContextPrefix}<search_results note="${searchNote}">\n${finalContext}\n</search_results>\n<widgets_result noteForAssistant="Its output is already showed to the user, assistant can use this information to answer the query but do not CITE this as a souce">\n${widgetContext}\n</widgets_result>`;
 
     const writerPrompt = getWriterPrompt(
       finalContextWithWidgets,

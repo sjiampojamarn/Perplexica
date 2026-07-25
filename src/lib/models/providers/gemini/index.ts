@@ -5,7 +5,7 @@ import GeminiEmbedding from './geminiEmbedding';
 import BaseEmbedding from '../../base/embedding';
 import BaseModelProvider from '../../base/provider';
 import BaseLLM from '../../base/llm';
-import GeminiLLM from './geminiLLM';
+import GeminiNativeLLM from './geminiNativeLLM';
 
 interface GeminiConfig {
   apiKey: string;
@@ -42,8 +42,7 @@ class GeminiProvider extends BaseModelProvider<GeminiConfig> {
 
     const data = await res.json();
 
-    let defaultEmbeddingModels: Model[] = [];
-    let defaultChatModels: Model[] = [];
+    const defaultEmbeddingModels: Model[] = [];
 
     data.models.forEach((m: any) => {
       if (
@@ -56,13 +55,13 @@ class GeminiProvider extends BaseModelProvider<GeminiConfig> {
           key: m.name,
           name: m.displayName,
         });
-      } else if (m.supportedGenerationMethods.includes('generateContent')) {
-        defaultChatModels.push({
-          key: m.name,
-          name: m.displayName,
-        });
       }
     });
+
+    const defaultChatModels: Model[] = [
+      { key: 'models/gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
+      { key: 'models/gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
+    ];
 
     return {
       embedding: defaultEmbeddingModels,
@@ -94,10 +93,16 @@ class GeminiProvider extends BaseModelProvider<GeminiConfig> {
       );
     }
 
-    return new GeminiLLM({
+    const model = key.replace(/^models\//, '');
+
+    const fallbackModels = modelList.chat
+      .map((m) => m.key.replace(/^models\//, ''))
+      .filter((m) => m !== model);
+
+    return new GeminiNativeLLM({
       apiKey: this.config.apiKey,
-      model: key,
-      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      model,
+      fallbackModels,
     });
   }
 
@@ -111,9 +116,11 @@ class GeminiProvider extends BaseModelProvider<GeminiConfig> {
       );
     }
 
+    const model = key.replace(/^models\//, '');
+
     return new GeminiEmbedding({
       apiKey: this.config.apiKey,
-      model: key,
+      model,
       baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
     });
   }
