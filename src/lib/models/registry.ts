@@ -5,6 +5,17 @@ import { providers } from './providers';
 import { MinimalProvider, ModelList } from './types';
 import configManager from '../config';
 
+const redactConfig = (config: Record<string, any>): Record<string, any> => {
+  const sensitiveKeys = ['apiKey', 'key', 'password', 'secret', 'token'];
+  const redacted: Record<string, any> = {};
+  for (const [k, v] of Object.entries(config)) {
+    redacted[k] = sensitiveKeys.some((s) => k.toLowerCase().includes(s))
+      ? '***REDACTED***'
+      : v;
+  }
+  return redacted;
+};
+
 class ModelRegistry {
   activeProviders: (ConfigModelProvider & {
     provider: BaseModelProvider<any>;
@@ -28,7 +39,7 @@ class ModelRegistry {
         });
       } catch (err) {
         console.error(
-          `Failed to initialize provider. Type: ${p.type}, ID: ${p.id}, Config: ${JSON.stringify(p.config)}, Error: ${err}`,
+          `Failed to initialize provider. Type: ${p.type}, ID: ${p.id}, Config: ${JSON.stringify(redactConfig(p.config))}, Error: ${err}`,
         );
       }
     });
