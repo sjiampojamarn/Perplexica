@@ -5,7 +5,7 @@ import { z } from 'zod';
 const createProviderSchema = z.object({
   type: z.string().min(1, 'Provider type is required'),
   name: z.string().min(1, 'Provider name is required'),
-  config: z.record(z.unknown()),
+  config: z.any(),
 });
 
 export const GET = async (req: Request) => {
