@@ -27,6 +27,7 @@ class Scraper {
         });
       }
 
+      this.userCount++;
       if (this.idleTimeout) clearTimeout(this.idleTimeout);
     });
   }
@@ -63,8 +64,6 @@ class Scraper {
     });
 
     const page = await context.newPage();
-
-    this.userCount++;
 
     try {
       await page.goto(url, {
@@ -104,7 +103,9 @@ class Scraper {
     } finally {
       this.userCount--;
 
-      await context.close().catch(() => undefined);
+      await context.close().catch((err) =>
+        console.warn('[scraper] Context close error:', err),
+      );
 
       if (this.userCount === 0) {
         this.scheduleIdleKill();
