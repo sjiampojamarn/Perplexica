@@ -389,7 +389,7 @@ class GeminiNativeLLM extends BaseLLM<GeminiNativeConfig> {
     throw lastErr || new Error('All Gemini models exhausted');
   }
 
-  async generateObject<T>(input: GenerateObjectInput): Promise<T> {
+  async generateObject<T>(input: GenerateObjectInput): Promise<z.infer<T>> {
     const { contents, systemInstruction } = this.buildContents(input.messages);
     const responseSchema = this.zodToResponseSchema(input.schema);
 
@@ -421,7 +421,7 @@ class GeminiNativeLLM extends BaseLLM<GeminiNativeConfig> {
       if (!text) throw new Error('Empty response from Gemini');
 
       try {
-        return input.schema.parse(JSON.parse(text)) as T;
+        return input.schema.parse(JSON.parse(text)) as z.infer<T>;
       } catch (parseErr) {
         throw new Error(
           `Error parsing structured response from Gemini: ${parseErr}`,
@@ -459,7 +459,7 @@ class GeminiNativeLLM extends BaseLLM<GeminiNativeConfig> {
 
       try {
         const repaired = text.replace(/```(?:json)?\n?|\n?```/g, '').trim();
-        return input.schema.parse(JSON.parse(repaired)) as T;
+        return input.schema.parse(JSON.parse(repaired)) as z.infer<T>;
       } catch (parseErr) {
         throw new Error(
           `Error parsing fallback response from Gemini: ${parseErr}`,
@@ -468,7 +468,7 @@ class GeminiNativeLLM extends BaseLLM<GeminiNativeConfig> {
     }
   }
 
-  async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<T> {
+  async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<Partial<z.infer<T>>> {
     const { contents, systemInstruction } = this.buildContents(input.messages);
     const responseSchema = this.zodToResponseSchema(input.schema);
 
@@ -502,9 +502,9 @@ class GeminiNativeLLM extends BaseLLM<GeminiNativeConfig> {
       recievedJson += text;
 
       try {
-        yield parse(recievedJson) as T;
+        yield parse(recievedJson) as Partial<z.infer<T>>;
       } catch {
-        yield {} as T;
+        yield {} as Partial<z.infer<T>>;
       }
     }
   }
