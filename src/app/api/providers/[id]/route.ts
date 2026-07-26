@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 const updateProviderSchema = z.object({
   name: z.string().min(1, 'Provider name is required'),
-  config: z.record(z.unknown()),
+  config: z.any(),
 });
 
 export const DELETE = async (
