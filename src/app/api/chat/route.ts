@@ -160,6 +160,18 @@ export const POST = async (req: Request) => {
     const writer = responseStream.writable.getWriter();
     const encoder = new TextEncoder();
 
+    let writerClosed = false;
+    const safeCloseWriter = () => {
+      if (writerClosed) return;
+      writerClosed = true;
+      writer.close().catch(() => {});
+    };
+
+    const cleanupSession = () => {
+      disconnect();
+      session.destroy();
+    };
+
     const disconnect = session.subscribe((event: string, data: any) => {
       if (event === 'data') {
         if (data.type === 'block') {
@@ -198,8 +210,8 @@ export const POST = async (req: Request) => {
             }) + '\n',
           ),
         );
-        writer.close();
-        session.removeAllListeners();
+        safeCloseWriter();
+        cleanupSession();
       } else if (event === 'error') {
         writer.write(
           encoder.encode(
@@ -209,8 +221,8 @@ export const POST = async (req: Request) => {
             }) + '\n',
           ),
         );
-        writer.close();
-        session.removeAllListeners();
+        safeCloseWriter();
+        cleanupSession();
       }
     });
 
@@ -227,6 +239,20 @@ export const POST = async (req: Request) => {
         fileIds: body.files,
         systemInstructions: body.systemInstructions || 'None',
       },
+    }).catch((err) => {
+      console.error('[chat] Search agent error:', err);
+      try {
+        writer.write(
+          encoder.encode(
+            JSON.stringify({
+              type: 'error',
+              data: err instanceof Error ? err.message : 'Search failed',
+            }) + '\n',
+          ),
+        );
+      } catch {}
+      safeCloseWriter();
+      cleanupSession();
     });
 
     ensureChatExists({
@@ -235,11 +261,13 @@ export const POST = async (req: Request) => {
       fileIds: body.files,
       query: body.message.content,
       userSessionId: body.message.userSessionId,
+    }).catch((err) => {
+      console.error('[chat] Failed to ensure chat exists:', err);
     });
 
     req.signal.addEventListener('abort', () => {
-      disconnect();
-      writer.close();
+      safeCloseWriter();
+      cleanupSession();
     });
 
     return new Response(responseStream.readable, {

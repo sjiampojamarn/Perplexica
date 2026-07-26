@@ -38,6 +38,12 @@ class SessionManager {
     return session;
   }
 
+  destroy() {
+    SessionManager.sessions.delete(this.id);
+    this.blocks.clear();
+    this.emitter.removeAllListeners();
+  }
+
   removeAllListeners() {
     this.emitter.removeAllListeners();
   }
