@@ -1,7 +1,7 @@
 import z from 'zod';
 import { Widget } from '../types';
 import formatChatHistoryAsString from '@/lib/utils/formatHistory';
-import { exp, evaluate as mathEval } from 'mathjs';
+import { evaluate as mathEval } from 'mathjs';
 
 const schema = z.object({
   expression: z
@@ -55,7 +55,7 @@ const calculationWidget: Widget = {
       return;
     }
 
-    const result = mathEval(output.expression);
+    const result = mathEval(output.expression, {});
 
     return {
       type: 'calculation_result',
