@@ -183,7 +183,7 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
     }
   }
 
-  async generateObject<T>(input: GenerateObjectInput): Promise<T> {
+  async generateObject<T>(input: GenerateObjectInput): Promise<z.infer<T>> {
     const response = await this.ollamaClient.chat({
       model: this.config.model,
       messages: this.convertToOllamaMessages(input.messages),
@@ -214,13 +214,13 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
             extractJson: true,
           }) as string,
         ),
-      ) as T;
+      ) as z.infer<T>;
     } catch (err) {
       throw new Error(`Error parsing response from Ollama: ${err}`);
     }
   }
 
-  async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<T> {
+  async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<Partial<z.infer<T>>> {
     let recievedObj: string = '';
 
     const stream = await this.ollamaClient.chat({
@@ -251,10 +251,10 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
       recievedObj += chunk.message.content;
 
       try {
-        yield parse(recievedObj) as T;
+        yield parse(recievedObj) as z.infer<T>;
       } catch (err) {
         console.log('Error parsing partial object from Ollama:', err);
-        yield {} as T;
+        yield {} as z.infer<T>;
       }
     }
   }

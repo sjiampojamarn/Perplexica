@@ -212,7 +212,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
     }
   }
 
-  async generateObject<T>(input: GenerateObjectInput): Promise<T> {
+  async generateObject<T>(input: GenerateObjectInput): Promise<z.infer<T>> {
     try {
       const response = await this.openAIClient.chat.completions.parse({
         messages: this.convertToOpenAIMessages(input.messages),
@@ -239,7 +239,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
                 extractJson: true,
               }) as string,
             ),
-          ) as T;
+          ) as z.infer<T>;
         } catch (err) {
           throw new Error(`Error parsing response from OpenAI: ${err}`);
         }
@@ -286,7 +286,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
               extractJson: true,
             }) as string,
           ),
-        ) as T;
+        ) as z.infer<T>;
       } catch (parseErr) {
         throw new Error(
           `Error parsing fallback response from OpenAI: ${parseErr}`,
@@ -295,7 +295,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
     }
   }
 
-  async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<T> {
+  async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<Partial<z.infer<T>>> {
     let recievedObj: string = '';
 
     const stream = this.openAIClient.responses.stream({
@@ -322,14 +322,14 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
         recievedObj += chunk.delta;
 
         try {
-          yield parse(recievedObj) as T;
+          yield parse(recievedObj) as z.infer<T>;
         } catch (err) {
           console.log('Error parsing partial object from OpenAI:', err);
-          yield {} as T;
+          yield {} as z.infer<T>;
         }
       } else if (chunk.type === 'response.output_text.done' && chunk.text) {
         try {
-          yield parse(chunk.text) as T;
+          yield parse(chunk.text) as z.infer<T>;
         } catch (err) {
           throw new Error(`Error parsing response from OpenAI: ${err}`);
         }
