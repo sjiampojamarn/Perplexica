@@ -16,13 +16,33 @@ const redactConfig = (config: Record<string, any>): Record<string, any> => {
   return redacted;
 };
 
+let cachedProviders:
+  | {
+      providers: (ConfigModelProvider & { provider: BaseModelProvider<any> })[];
+      timestamp: number;
+    }
+  | undefined;
+const CACHE_TTL = 30_000;
+
 class ModelRegistry {
   activeProviders: (ConfigModelProvider & {
     provider: BaseModelProvider<any>;
   })[] = [];
 
   constructor() {
-    this.initializeActiveProviders();
+    if (cachedProviders && Date.now() - cachedProviders.timestamp < CACHE_TTL) {
+      this.activeProviders = cachedProviders.providers;
+    } else {
+      this.initializeActiveProviders();
+      cachedProviders = {
+        providers: this.activeProviders,
+        timestamp: Date.now(),
+      };
+    }
+  }
+
+  static invalidateCache() {
+    cachedProviders = undefined;
   }
 
   private initializeActiveProviders() {
@@ -107,6 +127,7 @@ class ModelRegistry {
     name: string,
     config: Record<string, any>,
   ): Promise<ConfigModelProvider> {
+    ModelRegistry.invalidateCache();
     const provider = providers[type];
     if (!provider) throw new Error('Invalid provider type');
 
@@ -152,6 +173,7 @@ class ModelRegistry {
   }
 
   async removeProvider(providerId: string): Promise<void> {
+    ModelRegistry.invalidateCache();
     configManager.removeModelProvider(providerId);
     this.activeProviders = this.activeProviders.filter(
       (p) => p.id !== providerId,
@@ -165,6 +187,7 @@ class ModelRegistry {
     name: string,
     config: any,
   ): Promise<ConfigModelProvider> {
+    ModelRegistry.invalidateCache();
     const updated = await configManager.updateModelProvider(
       providerId,
       name,
@@ -215,6 +238,7 @@ class ModelRegistry {
     type: 'embedding' | 'chat',
     model: any,
   ): Promise<any> {
+    ModelRegistry.invalidateCache();
     const addedModel = configManager.addProviderModel(providerId, type, model);
     return addedModel;
   }
@@ -224,6 +248,7 @@ class ModelRegistry {
     type: 'embedding' | 'chat',
     modelKey: string,
   ): Promise<void> {
+    ModelRegistry.invalidateCache();
     configManager.removeProviderModel(providerId, type, modelKey);
     return;
   }
