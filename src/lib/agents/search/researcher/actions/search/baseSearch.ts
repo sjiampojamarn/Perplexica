@@ -48,28 +48,28 @@ export const executeSearch = async (input: {
       let resultChunks: Chunk[] = [];
 
       try {
-        const queryEmbedding = (await input.embedding.embedText([q]))[0];
+        const [queryEmbedding, ...chunkEmbeddings] =
+          await input.embedding.embedText([
+            q,
+            ...res.results.map((r) => r.content || r.title),
+          ]);
 
-        resultChunks = (
-          await Promise.all(
-            res.results.map(async (r) => {
-              const content = r.content || r.title;
-              const chunkEmbedding = (
-                await input.embedding.embedText([content])
-              )[0];
+        resultChunks = res.results
+          .map((r, i) => {
+            const content = r.content || r.title;
+            const chunkEmbedding = chunkEmbeddings[i];
 
-              return {
-                content,
-                metadata: {
-                  title: r.title,
-                  url: r.url,
-                  similarity: computeSimilarity(queryEmbedding, chunkEmbedding),
-                  embedding: chunkEmbedding,
-                },
-              };
-            }),
-          )
-        ).filter((c) => c.metadata.similarity > 0.5);
+            return {
+              content,
+              metadata: {
+                title: r.title,
+                url: r.url,
+                similarity: computeSimilarity(queryEmbedding, chunkEmbedding),
+                embedding: chunkEmbedding,
+              },
+            };
+          })
+          .filter((c) => c.metadata.similarity > 0.5);
       } catch (err) {
         resultChunks = res.results.map((r) => {
           const content = r.content || r.title;
