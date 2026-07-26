@@ -103,7 +103,7 @@ class Scraper {
     } finally {
       this.userCount--;
 
-      await context.close().catch((err) =>
+      await context.close().catch((err: unknown) =>
         console.warn('[scraper] Context close error:', err),
       );
 
