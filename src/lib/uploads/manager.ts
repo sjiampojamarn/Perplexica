@@ -184,7 +184,11 @@ class UploadManager {
 
             const fileId = crypto.randomBytes(16).toString('hex');
 
-            const fileExtension = file.name.split('.').pop();
+            const allowedExtensions = ['pdf', 'docx', 'txt', 'md', 'csv', 'json', 'xml', 'html', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp4', 'mp3', 'wav', 'ogg'];
+            const fileExtension = (file.name.split('.').pop() || '').toLowerCase();
+            if (!allowedExtensions.includes(fileExtension)) {
+              throw new Error(`File extension .${fileExtension} not allowed`);
+            }
             const fileName = `${crypto.randomBytes(16).toString('hex')}.${fileExtension}`;
             const filePath = path.join(UploadManager.uploadsDir, fileName);
 
