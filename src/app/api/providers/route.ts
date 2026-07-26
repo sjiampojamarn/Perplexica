@@ -1,5 +1,12 @@
 import ModelRegistry from '@/lib/models/registry';
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+
+const createProviderSchema = z.object({
+  type: z.string().min(1, 'Provider type is required'),
+  name: z.string().min(1, 'Provider name is required'),
+  config: z.record(z.unknown()),
+});
 
 export const GET = async (req: Request) => {
   try {
@@ -35,18 +42,22 @@ export const GET = async (req: Request) => {
 export const POST = async (req: NextRequest) => {
   try {
     const body = await req.json();
-    const { type, name, config } = body;
+    const parsed = createProviderSchema.safeParse(body);
 
-    if (!type || !name || !config) {
+    if (!parsed.success) {
       return Response.json(
         {
-          message: 'Missing required fields.',
+          message: 'Validation failed',
+          errors: parsed.error.issues.map((e) => ({
+            path: e.path.join('.'),
+            message: e.message,
+          })),
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
+
+    const { type, name, config } = parsed.data;
 
     const registry = new ModelRegistry();
 

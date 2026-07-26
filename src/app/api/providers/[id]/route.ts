@@ -1,5 +1,11 @@
 import ModelRegistry from '@/lib/models/registry';
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+
+const updateProviderSchema = z.object({
+  name: z.string().min(1, 'Provider name is required'),
+  config: z.record(z.unknown()),
+});
 
 export const DELETE = async (
   req: NextRequest,
@@ -49,19 +55,23 @@ export const PATCH = async (
 ) => {
   try {
     const body = await req.json();
-    const { name, config } = body;
-    const { id } = await params;
+    const parsed = updateProviderSchema.safeParse(body);
 
-    if (!id || !name || !config) {
+    if (!parsed.success) {
       return Response.json(
         {
-          message: 'Missing required fields.',
+          message: 'Validation failed',
+          errors: parsed.error.issues.map((e) => ({
+            path: e.path.join('.'),
+            message: e.message,
+          })),
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
+
+    const { name, config } = parsed.data;
+    const { id } = await params;
 
     const registry = new ModelRegistry();
 
