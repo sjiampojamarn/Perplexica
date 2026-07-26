@@ -1,6 +1,17 @@
 import ModelRegistry from '@/lib/models/registry';
-import { Model } from '@/lib/models/types';
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+
+const addModelSchema = z.object({
+  key: z.string().min(1, 'Model key is required'),
+  name: z.string().min(1, 'Model name is required'),
+  type: z.enum(['chat', 'embedding']),
+});
+
+const removeModelSchema = z.object({
+  key: z.string().min(1, 'Model key is required'),
+  type: z.enum(['chat', 'embedding']),
+});
 
 export const POST = async (
   req: NextRequest,
@@ -9,23 +20,25 @@ export const POST = async (
   try {
     const { id } = await params;
 
-    const body: Partial<Model> & { type: 'embedding' | 'chat' } =
-      await req.json();
+    const body = await req.json();
+    const parsed = addModelSchema.safeParse(body);
 
-    if (!body.key || !body.name) {
+    if (!parsed.success) {
       return Response.json(
         {
-          message: 'Key and name must be provided',
+          message: 'Validation failed',
+          errors: parsed.error.issues.map((e) => ({
+            path: e.path.join('.'),
+            message: e.message,
+          })),
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
 
     const registry = new ModelRegistry();
 
-    await registry.addProviderModel(id, body.type, body);
+    await registry.addProviderModel(id, parsed.data.type, parsed.data);
 
     return Response.json(
       {
@@ -55,26 +68,29 @@ export const DELETE = async (
   try {
     const { id } = await params;
 
-    const body: { key: string; type: 'embedding' | 'chat' } = await req.json();
+    const body = await req.json();
+    const parsed = removeModelSchema.safeParse(body);
 
-    if (!body.key) {
+    if (!parsed.success) {
       return Response.json(
         {
-          message: 'Key and name must be provided',
+          message: 'Validation failed',
+          errors: parsed.error.issues.map((e) => ({
+            path: e.path.join('.'),
+            message: e.message,
+          })),
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
 
     const registry = new ModelRegistry();
 
-    await registry.removeProviderModel(id, body.type, body.key);
+    await registry.removeProviderModel(id, parsed.data.type, parsed.data.key);
 
     return Response.json(
       {
-        message: 'Model added successfully',
+        message: 'Model removed successfully',
       },
       {
         status: 200,
