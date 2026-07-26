@@ -51,7 +51,7 @@ export const POST = async (req: Request) => {
 
     const agent = new APISearchAgent();
 
-    agent.searchAsync(session, {
+    const searchPromise = agent.searchAsync(session, {
       chatHistory: history,
       config: {
         embedding: embeddings,
@@ -64,9 +64,13 @@ export const POST = async (req: Request) => {
       followUp: body.query,
       chatId: crypto.randomUUID(),
       messageId: crypto.randomUUID(),
+    }).catch((err) => {
+      console.error('[search] Search agent error:', err);
+      session.emit('error', { data: err instanceof Error ? err.message : 'Search failed' });
     });
 
     if (!body.stream) {
+      let settled = false;
       return new Promise(
         (
           resolve: (value: Response) => void,
@@ -76,6 +80,7 @@ export const POST = async (req: Request) => {
           let sources: any[] = [];
 
           session.subscribe((event: string, data: Record<string, any>) => {
+            if (settled) return;
             if (event === 'data') {
               try {
                 if (data.type === 'response') {
@@ -84,6 +89,8 @@ export const POST = async (req: Request) => {
                   sources = data.data;
                 }
               } catch (error) {
+                settled = true;
+                session.destroy();
                 reject(
                   Response.json(
                     { message: 'Error parsing data' },
@@ -94,10 +101,14 @@ export const POST = async (req: Request) => {
             }
 
             if (event === 'end') {
+              settled = true;
+              session.destroy();
               resolve(Response.json({ message, sources }, { status: 200 }));
             }
 
             if (event === 'error') {
+              settled = true;
+              session.destroy();
               reject(
                 Response.json(
                   { message: 'Search error', error: data },
@@ -115,6 +126,12 @@ export const POST = async (req: Request) => {
     const abortController = new AbortController();
     const { signal } = abortController;
 
+    let streamClosed = false;
+    const safeClose = () => {
+      if (streamClosed) return;
+      streamClosed = true;
+    };
+
     const stream = new ReadableStream({
       start(controller) {
         let sources: any[] = [];
@@ -129,17 +146,17 @@ export const POST = async (req: Request) => {
         );
 
         signal.addEventListener('abort', () => {
-          session.removeAllListeners();
-
+          safeClose();
+          session.destroy();
           try {
             controller.close();
           } catch (error) {}
         });
 
         session.subscribe((event: string, data: Record<string, any>) => {
-          if (event === 'data') {
-            if (signal.aborted) return;
+          if (streamClosed || signal.aborted) return;
 
+          if (event === 'data') {
             try {
               if (data.type === 'response') {
                 controller.enqueue(
@@ -162,13 +179,15 @@ export const POST = async (req: Request) => {
                 );
               }
             } catch (error) {
+              safeClose();
+              session.destroy();
               controller.error(error);
             }
           }
 
           if (event === 'end') {
-            if (signal.aborted) return;
-
+            safeClose();
+            session.destroy();
             controller.enqueue(
               encoder.encode(
                 JSON.stringify({
@@ -180,13 +199,15 @@ export const POST = async (req: Request) => {
           }
 
           if (event === 'error') {
-            if (signal.aborted) return;
-
+            safeClose();
+            session.destroy();
             controller.error(data);
           }
         });
       },
       cancel() {
+        safeClose();
+        session.destroy();
         abortController.abort();
       },
     });
