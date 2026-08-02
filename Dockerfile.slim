@@ -30,8 +30,14 @@ COPY drizzle ./drizzle
 
 RUN mkdir /home/vane/uploads
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/vane/.cache/ms-playwright
+
 RUN yarn add playwright
 RUN yarn playwright install --with-deps --only-shell chromium
+
+RUN chown -R node:node /home/vane
+
+USER node
 
 EXPOSE 3000
 
