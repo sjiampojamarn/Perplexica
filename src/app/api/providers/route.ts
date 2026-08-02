@@ -1,6 +1,7 @@
 import ModelRegistry from '@/lib/models/registry';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { redactProviderConfig } from '@/lib/utils/redact';
 
 const createProviderSchema = z.object({
   type: z.string().min(1, 'Provider type is required'),
@@ -65,7 +66,7 @@ export const POST = async (req: NextRequest) => {
 
     return Response.json(
       {
-        provider: newProvider,
+        provider: redactProviderConfig(newProvider),
       },
       {
         status: 200,
