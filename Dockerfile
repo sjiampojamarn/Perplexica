@@ -34,6 +34,8 @@ COPY drizzle ./drizzle
 
 RUN mkdir /home/vane/uploads
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/vane/.cache/ms-playwright
+
 RUN yarn add playwright
 RUN yarn playwright install --with-deps --only-shell chromium
 
@@ -69,6 +71,8 @@ RUN chmod +x ./entrypoint.sh
 RUN sed -i 's/\r$//' ./entrypoint.sh || true
 
 RUN echo "searxng ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+RUN chown -R node:node /home/vane
 
 EXPOSE 3000 8080
 

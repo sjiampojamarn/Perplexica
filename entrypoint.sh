@@ -29,4 +29,6 @@ fi
 cd /home/vane
 echo "Starting Vane..."
 
-exec node server.js
+chown -R node:node /home/vane/data /home/vane/uploads 2>/dev/null || true
+
+exec sudo -u node -E node server.js
