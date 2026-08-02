@@ -1,6 +1,7 @@
 import ModelRegistry from '@/lib/models/registry';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { redactProviderConfig } from '@/lib/utils/redact';
 
 const updateProviderSchema = z.object({
   name: z.string().min(1, 'Provider name is required'),
@@ -79,7 +80,7 @@ export const PATCH = async (
 
     return Response.json(
       {
-        provider: updatedProvider,
+        provider: redactProviderConfig(updatedProvider),
       },
       {
         status: 200,
