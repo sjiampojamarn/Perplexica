@@ -26,6 +26,7 @@ import AssistantSteps from './AssistantSteps';
 import { ResearchBlock } from '@/lib/types';
 import Renderer from './Widgets/Renderer';
 import CodeBlock from './MessageRenderer/CodeBlock';
+import { sanitizeMarkdown } from '@/lib/utils/sanitizeMarkdown';
 
 const ThinkTagProcessor = ({
   children,
@@ -59,7 +60,9 @@ const MessageBox = ({
     chatHistory,
   } = useChat();
 
-  const parsedMessage = section.parsedTextBlocks.join('\n\n');
+  const parsedMessage = sanitizeMarkdown(
+    section.parsedTextBlocks.join('\n\n'),
+  );
   const speechMessage = section.speechMessage || '';
   const thinkingEnded = section.thinkingEnded;
 
