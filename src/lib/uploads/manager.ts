@@ -9,6 +9,10 @@ import officeParser from 'officeparser'
 
 const supportedMimeTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'] as const
 
+export const MAX_FILE_SIZE = 20 * 1024 * 1024;
+export const MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024;
+export const MAX_FILES_PER_REQUEST = 10;
+
 type SupportedMimeType = typeof supportedMimeTypes[number];
 
 type UploadManagerParams = {
@@ -177,7 +181,25 @@ class UploadManager {
     async processFiles(files: File[]): Promise<FileRes[]> {
         const processedFiles: FileRes[] = [];
 
+        if (files.length === 0) {
+            throw new Error('No files provided');
+        }
+
+        if (files.length > MAX_FILES_PER_REQUEST) {
+            throw new Error(`Too many files. Maximum is ${MAX_FILES_PER_REQUEST}`);
+        }
+
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+        if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
+            throw new Error('Total upload size exceeds the allowed limit');
+        }
+
         await Promise.all(files.map(async (file) => {
+            if (file.size > MAX_FILE_SIZE) {
+                throw new Error(`File ${file.name} exceeds the maximum allowed size`);
+            }
+
             if (!(supportedMimeTypes as unknown as string[]).includes(file.type)) {
                 throw new Error(`File type ${file.type} not supported`);
             }
