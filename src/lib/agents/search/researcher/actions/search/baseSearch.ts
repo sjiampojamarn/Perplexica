@@ -68,8 +68,7 @@ export const executeSearch = async (input: {
                 embedding: chunkEmbedding,
               },
             };
-          })
-          .filter((c) => c.metadata.similarity > 0.5);
+          });
       } catch (err) {
         resultChunks = res.results.map((r) => {
           const content = r.content || r.title;
@@ -131,8 +130,15 @@ export const executeSearch = async (input: {
 
     const uniqueSearchResultIndices: Set<number> = new Set();
 
+    const minimumResultsToKeep = 5;
+
     for (let i = 0; i < results.length; i++) {
       let isDuplicate = false;
+
+      if (uniqueSearchResultIndices.size < minimumResultsToKeep) {
+        uniqueSearchResultIndices.add(i);
+        continue;
+      }
 
       for (const indice of uniqueSearchResultIndices.keys()) {
         if (
