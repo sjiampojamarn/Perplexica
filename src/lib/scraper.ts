@@ -1,6 +1,7 @@
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { Mutex } from 'async-mutex';
+import { assertSafeUrl } from '@/lib/utils/ssrf';
 
 class Scraper {
   private static browser: any | undefined;
@@ -50,6 +51,8 @@ class Scraper {
   static async scrape(
     url: string,
   ): Promise<{ content: string; title: string }> {
+    await assertSafeUrl(url);
+
     await this.initBrowser();
 
     if (!this.browser) throw new Error('Browser not initialized');
