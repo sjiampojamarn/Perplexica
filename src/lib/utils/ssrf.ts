@@ -52,6 +52,27 @@ const isBlockedHostname = (hostname: string): boolean => {
   );
 };
 
+const lookupWithTimeout = (
+  hostname: string,
+  timeoutMs: number,
+): Promise<LookupAddress[]> => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`DNS lookup timed out for ${hostname}`));
+    }, timeoutMs);
+
+    lookup(hostname, { all: true, verbatim: true })
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+};
+
 const isBlockedIpAddress = (address: string): boolean => {
   const candidates = [address];
 
@@ -102,11 +123,7 @@ export const assertSafeUrl = async (url: string): Promise<void> => {
   let addresses: LookupAddress[];
 
   try {
-    const result = await lookup(hostname, {
-      all: true,
-      verbatim: true,
-      timeout: 5000,
-    });
+    const result = await lookupWithTimeout(hostname, 5000);
 
     addresses = result;
   } catch (err) {
