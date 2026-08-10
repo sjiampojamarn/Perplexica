@@ -31,7 +31,7 @@ const IPV6_BLOCKLIST = [
   '2001:db8::/32',
 ];
 
-const IPV6_MAX = (1n << 128n) - 1n;
+const IPV6_MAX = (BigInt(1) << BigInt(128)) - BigInt(1);
 
 type IPv4Rule = { network: number; prefix: number };
 
@@ -118,10 +118,10 @@ const ipv6ToBigInt = (ip: string): bigint | null => {
 
   if (hextets.length !== 8) return null;
 
-  let result = 0n;
+  let result = BigInt(0);
 
   for (const hextet of hextets) {
-    result = (result << 16n) | BigInt(hextet);
+    result = (result << BigInt(16)) | BigInt(hextet);
   }
 
   return result;
