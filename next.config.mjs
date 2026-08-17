@@ -40,6 +40,11 @@ const securityHeaders = [
 
 const nextConfig = {
   output: 'standalone',
+  experimental: {
+    instantInsights: {
+      validationLevel: 'manual-warning',
+    },
+  },
   images: {
     remotePatterns: [
       {
