@@ -34,7 +34,7 @@ COPY drizzle ./drizzle
 
 RUN mkdir /home/vane/uploads
 
-RUN ./node_modules/.bin/playwright install --with-deps --only-shell chromium
+RUN node node_modules/playwright/cli.js install --with-deps --only-shell chromium
 
 RUN useradd --shell /bin/bash --system \
     --home-dir "/usr/local/searxng" \
