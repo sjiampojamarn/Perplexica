@@ -7,6 +7,9 @@ WORKDIR /home/vane
 COPY package.json yarn.lock ./
 RUN yarn install --network-timeout 600000
 
+COPY scripts/fetch-canvas-bindings.mjs ./scripts/
+RUN node scripts/fetch-canvas-bindings.mjs
+
 COPY tsconfig.json next.config.mjs next-env.d.ts postcss.config.js drizzle.config.ts tailwind.config.ts ./
 COPY src ./src
 COPY public ./public
