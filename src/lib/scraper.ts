@@ -7,9 +7,61 @@ class Scraper {
   private static browser: any | undefined;
   private static IDLE_KILL_TIMEOUT = 30000;
   private static NAVIGATION_TIMEOUT = 20000;
+  private static CHALLENGE_TIMEOUT = 60000;
   private static idleTimeout: NodeJS.Timeout | undefined;
   private static browserMutex = new Mutex();
   private static userCount = 0;
+
+  private static challengeTitlePatterns: RegExp[] = [
+    /not a bot/i,
+    /just a moment/i,
+    /checking your browser/i,
+    /attention required/i,
+    /verify (?:you|your)/i,
+    /verify you are human/i,
+    /access denied/i,
+    /waiting for [a-z]+/i,
+  ];
+
+  private static isChallengePage(title: string): boolean {
+    if (!title) return false;
+    return this.challengeTitlePatterns.some((pattern) =>
+      pattern.test(title),
+    );
+  }
+
+  private static async waitForChallengeResolution(page: any): Promise<boolean> {
+    let title = await page.title().catch(() => '');
+
+    if (!this.isChallengePage(title)) return false;
+
+    console.log(
+      `[scraper] Anti-bot challenge detected (title: "${title}"), waiting up to ${
+        this.CHALLENGE_TIMEOUT / 1000
+      }s for it to resolve...`,
+    );
+
+    const deadline = Date.now() + this.CHALLENGE_TIMEOUT;
+
+    while (Date.now() < deadline) {
+      await page.waitForTimeout(1000);
+
+      title = await page.title().catch(() => '');
+
+      if (!this.isChallengePage(title)) {
+        console.log('[scraper] Anti-bot challenge resolved');
+        return true;
+      }
+    }
+
+    console.warn(
+      `[scraper] Anti-bot challenge did not resolve within ${
+        this.CHALLENGE_TIMEOUT / 1000
+      }s, returning current page content`,
+    );
+
+    return false;
+  }
 
   private static async initBrowser() {
     await this.browserMutex.runExclusive(async () => {
@@ -73,6 +125,8 @@ class Scraper {
         waitUntil: 'domcontentloaded',
         timeout: this.NAVIGATION_TIMEOUT,
       });
+
+      await this.waitForChallengeResolution(page);
 
       await page
         .waitForLoadState('load', { timeout: 5000 })
