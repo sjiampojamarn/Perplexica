@@ -7,6 +7,7 @@ import { classify } from '@/lib/agents/search/classifier';
 import { WidgetExecutor } from '@/lib/agents/search/widgets';
 import { ActionRegistry } from '@/lib/agents/search/researcher/actions';
 import { getChatPrompt } from '@/lib/prompts/chat';
+import { loadChatHistory, mergeHistories } from '@/lib/utils/chatHistory';
 import SessionManager from '@/lib/session';
 import db from '@/lib/db';
 import { messages } from '@/lib/db/schema';
@@ -145,8 +146,15 @@ class ChatAgent {
         .execute();
     }
 
+    const serverHistory = await loadChatHistory(
+      input.chatId,
+      input.messageId,
+    );
+
+    const chatHistory = mergeHistories(serverHistory, input.chatHistory);
+
     const classification = await classify({
-      chatHistory: input.chatHistory,
+      chatHistory,
       enabledSources: input.config.sources,
       query: input.query,
       llm: input.config.llm,
@@ -154,7 +162,7 @@ class ChatAgent {
 
     const widgetOutputs = await WidgetExecutor.executeAll({
       classification,
-      chatHistory: input.chatHistory,
+      chatHistory,
       followUp: input.query,
       llm: input.config.llm,
     });
@@ -265,7 +273,7 @@ class ChatAgent {
           role: 'system',
           content: systemPrompt,
         },
-        ...input.chatHistory.slice(-12),
+        ...chatHistory.slice(-20),
         ...agentMessageHistory,
         {
           role: 'user',

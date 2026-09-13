@@ -4,6 +4,7 @@ import { classify } from './classifier';
 import Researcher from './researcher';
 import { getWriterPrompt } from '@/lib/prompts/search/writer';
 import { WidgetExecutor } from './widgets';
+import { loadChatHistory, mergeHistories } from '@/lib/utils/chatHistory';
 import db from '@/lib/db';
 import { messages } from '@/lib/db/schema';
 import { and, eq, gt } from 'drizzle-orm';
@@ -52,8 +53,15 @@ class SearchAgent {
         .execute();
     }
 
+    const serverHistory = await loadChatHistory(
+      input.chatId,
+      input.messageId,
+    );
+
+    const chatHistory = mergeHistories(serverHistory, input.chatHistory);
+
     const classification = await classify({
-      chatHistory: input.chatHistory,
+      chatHistory,
       enabledSources: input.config.sources,
       query: input.followUp,
       llm: input.config.llm,
@@ -61,7 +69,7 @@ class SearchAgent {
 
     const widgetPromise = WidgetExecutor.executeAll({
       classification,
-      chatHistory: input.chatHistory,
+      chatHistory,
       followUp: input.followUp,
       llm: input.config.llm,
     }).then((widgetOutputs) => {
@@ -85,7 +93,7 @@ class SearchAgent {
       ? Promise.resolve(null)
       : new Researcher()
           .research(session, {
-            chatHistory: input.chatHistory,
+            chatHistory,
             followUp: input.followUp,
             classification: classification,
             config: input.config,
@@ -163,7 +171,7 @@ class SearchAgent {
           role: 'system',
           content: writerPrompt,
         },
-        ...input.chatHistory,
+        ...chatHistory,
         {
           role: 'user',
           content: input.followUp,
