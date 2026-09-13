@@ -14,6 +14,7 @@ import { messages } from '@/lib/db/schema';
 import { and, eq, gt } from 'drizzle-orm';
 import { Chunk, ChatTurnMessage, Message, TextBlock } from '@/lib/types';
 import { Tool, ToolCall } from '@/lib/models/types';
+import formatChatHistoryAsString from '@/lib/utils/formatHistory';
 
 export type ChatAgentInput = {
   chatHistory: ChatTurnMessage[];
@@ -263,23 +264,43 @@ class ChatAgent {
       accumulatedText = text;
     };
 
+    // When tools are available, embed the conversation inside a single user
+    // message (mirroring the researcher loop). Gemini requires that a
+    // function-call assistant turn directly follow a user or function
+    // response turn; having a plain prior assistant turn (the last chat reply)
+    // immediately before the first tool-call turn triggers a 400.
+    const preamble: Message[] =
+      availableTools.length > 0
+        ? [
+            {
+              role: 'system',
+              content: systemPrompt,
+            },
+            {
+              role: 'user',
+              content: `<conversation>\n${formatChatHistoryAsString(
+                chatHistory.slice(-20),
+              )}\nUser: ${input.query}\n</conversation>`,
+            },
+          ]
+        : [
+            {
+              role: 'system',
+              content: systemPrompt,
+            },
+            ...chatHistory.slice(-20),
+            {
+              role: 'user',
+              content: input.query,
+            },
+          ];
+
     for (let i = 0; i < maxIterations; i++) {
       const textBeforeRound = accumulatedText;
 
       let finalToolCalls: ToolCall[] = [];
 
-      const toolMessages: Message[] = [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        ...chatHistory.slice(-20),
-        ...agentMessageHistory,
-        {
-          role: 'user',
-          content: input.query,
-        },
-      ];
+      const toolMessages: Message[] = [...preamble, ...agentMessageHistory];
 
       for (let attempt = 0; attempt < 3; attempt++) {
         const toolGenInput =
