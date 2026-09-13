@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import ModelRegistry from '@/lib/models/registry';
 import { ModelWithProvider } from '@/lib/models/types';
-import SearchAgent from '@/lib/agents/search';
+import ChatAgent from '@/lib/agents/chat';
 import SessionManager from '@/lib/session';
 import { ChatTurnMessage } from '@/lib/types';
 import { SearchSources } from '@/lib/agents/search/types';
@@ -153,7 +153,7 @@ export const POST = async (req: Request) => {
       }
     });
 
-    const agent = new SearchAgent();
+    const agent = new ChatAgent();
     const session = SessionManager.createSession();
 
     const responseStream = new TransformStream();
@@ -226,9 +226,9 @@ export const POST = async (req: Request) => {
       }
     });
 
-    agent.searchAsync(session, {
+    agent.chatAsync(session, {
       chatHistory: history,
-      followUp: message.content,
+      query: message.content,
       chatId: body.message.chatId,
       messageId: body.message.messageId,
       config: {
@@ -240,7 +240,7 @@ export const POST = async (req: Request) => {
         systemInstructions: body.systemInstructions || 'None',
       },
     }).catch((err) => {
-      console.error('[chat] Search agent error:', err);
+      console.error('[chat] Chat agent error:', err);
       try {
         writer.write(
           encoder.encode(
