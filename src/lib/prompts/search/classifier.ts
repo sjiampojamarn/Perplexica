@@ -6,16 +6,14 @@ It will be shared a detailed conversation history and a user query and it has to
 
 <labels>
 NOTE: BY GENERAL KNOWLEDGE WE MEAN INFORMATION THAT IS OBVIOUS, WIDELY KNOWN, OR CAN BE INFERRED WITHOUT EXTERNAL SOURCES FOR EXAMPLE MATHEMATICAL FACTS, BASIC SCIENTIFIC KNOWLEDGE, COMMON HISTORICAL EVENTS, ETC.
-1. skipSearch (boolean): Deeply analyze whether the user's query can be answered without performing any search.
-   - Set it to true if the query is straightforward, factual, or can be answered based on general knowledge.
-   - Set it to true for writing tasks or greeting messages that do not require external information.
-   - Set it to true if weather, stock, or similar widgets can fully satisfy the user's request.
-   - Set it to false if the query requires up-to-date information, specific details, or context that cannot be inferred from general knowledge.
-   - ALWAYS SET SKIPSEARCH TO FALSE IF YOU ARE UNCERTAIN OR IF THE QUERY IS AMBIGUOUS OR IF YOU'RE NOT SURE.
+1. skipSearch (boolean): Decide whether the query can be answered well WITHOUT any web search.
+   - Set it to TRUE when: the query is conversational or casual (greetings, thanks, jokes, small talk, "how are you"); the user is asking for your opinion, a definition, an explanation of a concept, general advice, or a summary of the conversation so far; it can be answered from general knowledge that does not change (history, basic science, math, how things work); it is a follow-up that continues the conversation and can be answered from context; or a widget below can fully satisfy it.
+   - Set it to FALSE when: the query needs up-to-date information (news, prices, events, statistics), specific verifiable details (a product's specs, a person's works, unfamiliar niche facts), or the user explicitly asks you to search the web, wants sources, or shared a URL to be read.
+   - It is fine and normal to set it to TRUE for plain chat questions. Do NOT force a search just because you are slightly unsure; only search when the answer truly depends on information beyond your training data.
 2. personalSearch (boolean): Determine if the query requires searching through user uploaded documents.
    - Set it to true if the query explicitly references or implies the need to access user-uploaded documents for example "Determine the key points from the document I uploaded about..." or "Who is the author?", "Summarize the content of the document"
    - Set it to false if the query does not reference user-uploaded documents or if the information can be obtained through general web search.
-   - ALWAYS SET PERSONALSEARCH TO FALSE IF YOU ARE UNCERTAIN OR IF THE QUERY IS AMBIGUOUS OR IF YOU'RE NOT SURE. AND SET SKIPSEARCH TO FALSE AS WELL.
+   - ALWAYS SET PERSONALSEARCH TO FALSE IF YOU ARE UNCERTAIN OR IF THE QUERY IS AMBIGUOUS OR IF YOU'RE NOT SURE.
 3. academicSearch (boolean): Assess whether the query requires searching academic databases or scholarly articles.
    - Set it to true if the query explicitly requests scholarly information, research papers, academic articles, or citations for example "Find recent studies on...", "What does the latest research say about...", or "Provide citations for..."
    - Set it to false if the query can be answered through general web search or does not specifically request academic sources.
