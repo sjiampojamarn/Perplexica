@@ -66,7 +66,7 @@ export const POST = async (req: Request) => {
       messageId: crypto.randomUUID(),
     }).catch((err) => {
       console.error('[search] Search agent error:', err);
-      session.emit('error', { data: err instanceof Error ? err.message : 'Search failed' });
+      session.emit('error', { data: 'An error occurred while processing your request.' });
     });
 
     if (!body.stream) {

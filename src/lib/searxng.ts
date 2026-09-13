@@ -60,7 +60,7 @@ export const searchSearxng = async (
     if (err.name === 'AbortError') {
       throw new Error('SearXNG search timed out');
     }
-    throw err;
+    throw new Error('SearXNG search failed');
   } finally {
     clearTimeout(timeoutId);
   }

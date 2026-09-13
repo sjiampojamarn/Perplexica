@@ -246,7 +246,7 @@ export const POST = async (req: Request) => {
           encoder.encode(
             JSON.stringify({
               type: 'error',
-              data: err instanceof Error ? err.message : 'Search failed',
+              data: 'An error occurred while processing your request.',
             }) + '\n',
           ),
         );

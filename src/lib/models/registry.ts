@@ -73,7 +73,7 @@ class ModelRegistry {
             chat: [
               {
                 key: 'error',
-                name: err.message,
+                name: 'Failed to load models',
               },
             ],
             embedding: [],
@@ -143,7 +143,7 @@ class ModelRegistry {
         chat: [
           {
             key: 'error',
-            name: err.message,
+            name: 'Failed to load models',
           },
         ],
         embedding: [],
@@ -203,7 +203,7 @@ class ModelRegistry {
         chat: [
           {
             key: 'error',
-            name: err.message,
+            name: 'Failed to load models',
           },
         ],
         embedding: [],
