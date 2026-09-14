@@ -208,6 +208,7 @@ class ChatAgent {
 
     let researchBlockId = '';
     let allSearchResults: Chunk[] = [];
+    let loopExhausted = false;
 
     let textBlockId = '';
     let accumulatedText = '';
@@ -300,6 +301,8 @@ class ChatAgent {
 
       let finalToolCalls: ToolCall[] = [];
 
+      let roundFinishReason: string | null = null;
+
       const toolMessages: Message[] = [...preamble, ...agentMessageHistory];
 
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -315,6 +318,10 @@ class ChatAgent {
             for await (const partialRes of stream) {
               if (partialRes.contentChunk) {
                 streamChunkIntoBlock(partialRes.contentChunk);
+              }
+
+              if (partialRes.additionalInfo?.finishReason) {
+                roundFinishReason = partialRes.additionalInfo.finishReason;
               }
 
               if (partialRes.toolCallChunk.length > 0) {
@@ -364,8 +371,18 @@ class ChatAgent {
         }
       }
 
+      console.log(`[chat] round ${i + 1}/${maxIterations}`, {
+        finishReason: roundFinishReason,
+        toolCalls: finalToolCalls.map((tc) => tc.name),
+        textAdded: accumulatedText.length - textBeforeRound.length,
+      });
+
       if (finalToolCalls.length === 0) {
         break;
+      }
+
+      if (i === maxIterations - 1) {
+        loopExhausted = true;
       }
 
       if (!researchBlockId) {
@@ -421,6 +438,53 @@ class ChatAgent {
     }
 
     const filteredSearchResults = this.filterSearchResults(allSearchResults);
+
+    const needsFinalAnswer =
+      loopExhausted || accumulatedText.trim().length === 0;
+
+    if (needsFinalAnswer) {
+      const conversation = formatChatHistoryAsString(chatHistory.slice(-20));
+
+      const resultsContext = filteredSearchResults
+        .map((result) => {
+          const content = (result.content || '').slice(0, 800);
+
+          return `<result>\n<title>${result.metadata.title || result.metadata.url || 'Source'}</title>\n<url>${result.metadata.url || ''}</url>\n<content>${content}</content>\n</result>`;
+        })
+        .join('\n');
+
+      const finalUserPrompt = [
+        `<conversation>\n${conversation}\nUser: ${input.query}\n</conversation>`,
+        resultsContext
+          ? `<search_results>\n${resultsContext}\n</search_results>`
+          : '',
+        'Provide the final answer to the user now. If the search results above contain the information, use them. If there are no search results and you do not reliably know the answer, say so clearly instead of guessing.',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+
+      console.warn(
+        '[chat] tool loop ended without a final answer; generating one now',
+        { loopExhausted, accumulatedTextLength: accumulatedText.length },
+      );
+
+      try {
+        const finalStream = input.config.llm.streamText({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: finalUserPrompt },
+          ],
+        });
+
+        for await (const partialRes of finalStream) {
+          if (partialRes.contentChunk) {
+            streamChunkIntoBlock(partialRes.contentChunk);
+          }
+        }
+      } catch (err) {
+        console.error('[chat] Final answer generation failed:', err);
+      }
+    }
 
     if (filteredSearchResults.length > 0) {
       session.emitBlock({

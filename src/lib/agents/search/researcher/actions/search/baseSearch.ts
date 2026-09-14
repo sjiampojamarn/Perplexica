@@ -20,6 +20,16 @@ export const executeSearch = async (input: {
 }) => {
   const researchBlock = input.researchBlock;
 
+  const stripEmbeddings = (chunks: Chunk[]): Chunk[] =>
+    chunks.map((chunk) => {
+      const clone: Chunk = {
+        ...chunk,
+        metadata: { ...chunk.metadata },
+      };
+      delete clone.metadata.embedding;
+      return clone;
+    });
+
   researchBlock.data.subSteps.push({
     id: crypto.randomUUID(),
     type: 'searching',
@@ -93,7 +103,7 @@ export const executeSearch = async (input: {
         researchBlock.data.subSteps.push({
           id: searchResultsBlockId,
           type: 'search_results',
-          reading: resultChunks,
+          reading: stripEmbeddings(resultChunks),
         });
 
         input.session.updateBlock(researchBlock.id, [
@@ -112,7 +122,7 @@ export const executeSearch = async (input: {
           subStepIndex
         ] as SearchResultsResearchBlock;
 
-        subStep.reading.push(...resultChunks);
+        subStep.reading.push(...stripEmbeddings(resultChunks));
 
         input.session.updateBlock(researchBlock.id, [
           {
@@ -229,7 +239,7 @@ export const executeSearch = async (input: {
           subStepIndex
         ] as SearchResultsResearchBlock;
 
-        subStep.reading.push(...resultChunks);
+        subStep.reading.push(...stripEmbeddings(resultChunks));
 
         input.session.updateBlock(researchBlock.id, [
           {
