@@ -209,6 +209,7 @@ class ChatAgent {
     let researchBlockId = '';
     let allSearchResults: Chunk[] = [];
     let loopExhausted = false;
+    let brokeEmptyTurn = false;
 
     let textBlockId = '';
     let accumulatedText = '';
@@ -378,6 +379,9 @@ class ChatAgent {
       });
 
       if (finalToolCalls.length === 0) {
+        if (accumulatedText === textBeforeRound) {
+          brokeEmptyTurn = true;
+        }
         break;
       }
 
@@ -440,17 +444,19 @@ class ChatAgent {
     const filteredSearchResults = this.filterSearchResults(allSearchResults);
 
     const needsFinalAnswer =
-      loopExhausted || accumulatedText.trim().length === 0;
+      loopExhausted || accumulatedText.trim().length === 0 || brokeEmptyTurn;
 
     if (needsFinalAnswer) {
       const conversation = formatChatHistoryAsString(chatHistory.slice(-20));
 
       const resultsContext = filteredSearchResults
-        .map((result) => {
-          const content = (result.content || '').slice(0, 800);
-
-          return `<result>\n<title>${result.metadata.title || result.metadata.url || 'Source'}</title>\n<url>${result.metadata.url || ''}</url>\n<content>${content}</content>\n</result>`;
-        })
+        .map(
+          (result, index) => `<result indice=${index + 1}>
+<title>${result.metadata.title || result.metadata.url || 'Source'}</title>
+<url>${result.metadata.url || ''}</url>
+<content>${(result.content || '').slice(0, 800)}</content>
+</result>`,
+        )
         .join('\n');
 
       const finalUserPrompt = [
@@ -458,15 +464,26 @@ class ChatAgent {
         resultsContext
           ? `<search_results>\n${resultsContext}\n</search_results>`
           : '',
-        'Provide the final answer to the user now. If the search results above contain the information, use them. If there are no search results and you do not reliably know the answer, say so clearly instead of guessing.',
+        `Write the final answer to the user's question now, directly addressing what is being asked.
+
+Requirements:
+- Answer the actual question, completely and specifically. If the question is about differences, comparisons, limits, prices or benefits, structure the answer around exactly those points (e.g. a short per-plan breakdown).
+- Use ONLY the information in the search results above; do not invent figures, prices or features that are not supported by them.
+- If the search results do not contain enough information to answer properly, briefly say which part is missing and still give the best answer you can from general knowledge.
+- Cite facts from the search results with inline [n] markers where n is the result number shown above (e.g. [1], [2]).
+- Keep it conversational: short paragraphs and natural bullet lists when a list helps. No "key takeaways" boxes or report-style headlines.
+- Never echo the user's question or repeat search terms; produce a complete, polished answer.`,
       ]
         .filter(Boolean)
         .join('\n\n');
 
-      console.warn(
-        '[chat] tool loop ended without a final answer; generating one now',
-        { loopExhausted, accumulatedTextLength: accumulatedText.length },
-      );
+      console.warn('[chat] generating final answer', {
+        loopExhausted,
+        brokeEmptyTurn,
+        accumulatedTextLength: accumulatedText.length,
+      });
+
+      resetTextBlockTo('');
 
       try {
         const finalStream = input.config.llm.streamText({
