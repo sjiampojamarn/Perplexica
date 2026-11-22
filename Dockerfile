@@ -1,11 +1,13 @@
-FROM node:24.5.0-slim AS builder
+FROM node:24.22.1-slim AS builder
+
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
 
 RUN apt-get update && apt-get install -y python3 python3-pip sqlite3 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/vane
 
 COPY package.json yarn.lock ./
-RUN yarn install --network-timeout 600000
+RUN yarn install --frozen-lockfile --network-timeout 600000
 
 COPY scripts/fetch-canvas-bindings.mjs ./scripts/
 RUN node scripts/fetch-canvas-bindings.mjs
@@ -18,7 +20,7 @@ COPY drizzle ./drizzle
 RUN mkdir -p /home/vane/data
 RUN yarn build
 
-FROM node:24.5.0-slim
+FROM node:24.22.1-slim
 
 RUN apt-get update && apt-get install -y \
     python3-dev python3-babel python3-venv python-is-python3 \
@@ -50,7 +52,7 @@ RUN mkdir "/usr/local/searxng"
 RUN mkdir -p /etc/searxng
 RUN chown -R "searxng:searxng" "/usr/local/searxng"
 
-COPY searxng/settings.yml /etc/searxng/settings.yml
+COPY searxng/settings.yml /etc/searxng/settings.yml.template
 COPY searxng/limiter.toml /etc/searxng/limiter.toml
 COPY searxng/uwsgi.ini /etc/searxng/uwsgi.ini
 RUN chown -R searxng:searxng /etc/searxng

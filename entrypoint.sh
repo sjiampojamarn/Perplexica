@@ -1,6 +1,25 @@
 #!/bin/sh
 set -e
 
+if [ -z "$SEARXNG_SECRET" ]; then
+  echo "SEARXNG_SECRET must be set" >&2
+  exit 1
+fi
+
+python - <<'PY'
+import os
+
+with open('/etc/searxng/settings.yml.template', encoding='utf-8') as src:
+    content = src.read()
+
+content = content.replace('${SEARXNG_SECRET}', os.environ['SEARXNG_SECRET'])
+
+with open('/etc/searxng/settings.yml', 'w', encoding='utf-8') as dst:
+    dst.write(content)
+os.chmod('/etc/searxng/settings.yml', 0o600)
+PY
+chown searxng:searxng /etc/searxng/settings.yml
+
 echo "Starting SearXNG..."
 
 sudo -H -u searxng bash -c "cd /usr/local/searxng/searxng-src && export SEARXNG_SETTINGS_PATH='/etc/searxng/settings.yml' && export FLASK_APP=searx/webapp.py && /usr/local/searxng/searx-pyenv/bin/python -m flask run --host=0.0.0.0 --port=8080" &

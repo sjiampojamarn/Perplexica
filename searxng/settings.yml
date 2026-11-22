@@ -10,7 +10,7 @@ search:
     - json
 
 server:
-  secret_key: '${SEARXNG_SECRET}' # Is overwritten by ${SEARXNG_SECRET}
+  secret_key: '${SEARXNG_SECRET}'
 
 engines:
   - name: wolframalpha

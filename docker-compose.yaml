@@ -5,6 +5,8 @@ services:
       context: .
     ports:
       - '3000:3000'
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:?Set SEARXNG_SECRET in your environment}
     volumes:
       - data:/home/vane/data
     restart: unless-stopped
