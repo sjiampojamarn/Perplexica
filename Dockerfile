@@ -20,13 +20,16 @@ COPY drizzle ./drizzle
 RUN mkdir -p /home/vane/data
 RUN yarn build
 
-FROM node:24.22.1-slim
+FROM node:24.22.1-trixie-slim
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     python3-dev python3-babel python3-venv python-is-python3 \
     uwsgi uwsgi-plugin-python3 \
     git build-essential libxslt-dev zlib1g-dev libffi-dev libssl-dev \
-    curl sudo \
+    curl sudo ca-certificates \
+    && apt-get purge -y --auto-remove openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/vane
